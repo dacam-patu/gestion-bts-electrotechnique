@@ -121,7 +121,7 @@ const ReferentielDescriptionActivites = () => {
   }, [location.search]);
 
   // Détails (extrait – complétables ensuite pour toutes les tâches)
-  export const taskDetails = {
+  const taskDetails = {
     'T 1.1': {
       description: [
         'recenser tous les documents qui expriment les besoins du client/utilisateur',

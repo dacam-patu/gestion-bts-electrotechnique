@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { taskDetails } from './ReferentielDescriptionActivites';
+import { taskDetails } from '../data/taskDetails';
 
 const competencies = [
   { code: 'C1', label: 'recenser et prendre en compte les normes, les réglementations applicables au projet/chantier' },
