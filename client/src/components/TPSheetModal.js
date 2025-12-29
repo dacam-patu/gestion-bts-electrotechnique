@@ -207,6 +207,9 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
       finalEquipment.push(customEquipment.trim());
       setCustomEquipment('');
     }
+    // Dédupliquer et mettre à jour l'état d'affichage
+    finalEquipment = Array.from(new Set(finalEquipment));
+    setSelectedEquipment(finalEquipment);
     const equipmentText = finalEquipment.join('\n');
     setContent(prev => ({ ...prev, equipment: equipmentText }));
     setShowEquipmentModal(false);
