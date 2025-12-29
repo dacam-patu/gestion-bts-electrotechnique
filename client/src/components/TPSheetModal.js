@@ -230,6 +230,9 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
       finalDocuments.push(customDocument.trim());
       setCustomDocument('');
     }
+    // Dédupliquer et mettre à jour l'état d'affichage
+    finalDocuments = Array.from(new Set(finalDocuments));
+    setSelectedDocuments(finalDocuments);
     const documentsText = finalDocuments.join('\n');
     setContent(prev => ({ ...prev, documents: documentsText }));
     setShowDocumentsModal(false);
