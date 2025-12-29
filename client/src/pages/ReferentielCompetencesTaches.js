@@ -169,7 +169,7 @@ export default function ReferentielCompetencesTaches() {
                               <button
                                 type="button"
                                 className="text-left text-blue-600 hover:underline"
-                                onClick={() => setOpenedTask({ code, label: tasksLabels[idx] || '' })}
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenedTask({ code, label: tasksLabels[idx] || '' }); }}
                               >
                                 <span className="font-medium">{code}</span> — {tasksLabels[idx] || ''}
                               </button>
@@ -202,7 +202,7 @@ export default function ReferentielCompetencesTaches() {
                     key={t.code}
                     id={encodeURIComponent(t.code)}
                     className="align-top hover:bg-blue-50 cursor-pointer"
-                    onClick={() => setOpenedTask({ code: t.code, label: t.label })}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenedTask({ code: t.code, label: t.label }); }}
                   >
                     <td className="px-4 py-3 font-semibold text-gray-800">
                       <span className="text-blue-700 underline">{t.code}</span>
