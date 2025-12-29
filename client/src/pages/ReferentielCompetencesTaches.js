@@ -169,7 +169,7 @@ export default function ReferentielCompetencesTaches() {
                               <button
                                 type="button"
                                 className="text-left text-blue-600 hover:underline"
-                                onClick={() => navigate(`/referentiel/description-activites?task=${encodeURIComponent(code)}`)}
+                                onClick={() => setOpenedTask({ code, label: tasksLabels[idx] || '' })}
                               >
                                 <span className="font-medium">{code}</span> — {tasksLabels[idx] || ''}
                               </button>
