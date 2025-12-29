@@ -28,6 +28,11 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   const [showNameModal, setShowNameModal] = useState(false);
   const [sheetName, setSheetName] = useState('');
   const [selectedCompetencies, setSelectedCompetencies] = useState([]);
+  // Séparer les compétences ajoutées automatiquement (via tâches) et celles ajoutées manuellement
+  const [autoCompetencies, setAutoCompetencies] = useState([]);
+  const [manualCompetencies, setManualCompetencies] = useState([]);
+  // Liste des compétences auto que l'utilisateur a explicitement retirées
+  const [excludedAutoCompetencies, setExcludedAutoCompetencies] = useState([]);
   const [showCompetenciesModal, setShowCompetenciesModal] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [showTasksModal, setShowTasksModal] = useState(false);
@@ -39,19 +44,79 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   const [customDocument, setCustomDocument] = useState('');
   const [isPrinting, setIsPrinting] = useState(false);
 
-  // Listes disponibles
-  const availableCompetencies = [
-    'C2 : Extraire les informations nécessaires à la réalisation des tâches',
-    'C13 : Mesurer les grandeurs caractéristiques d\'un ouvrage, d\'une installation, d\'un équipement électrique',
-    'C17 : Réaliser un diagnostic de performance y compris énergétique, de sécurité, d\'un ouvrage, d\'une installation, d\'un équipement électrique',
-    'C18 : Proposer des solutions techniques'
+  // Référentiel - Liste des tâches (mêmes libellés que Référentiel > Liste des tâches)
+  const ALL_TASKS = [
+    'T 1.1 : analyser et/ou élaborer les documents relatifs aux besoins du client/utilisateur',
+    'T 1.2 : élaborer un avant-projet/chantier (ou avant-projet sommaire)',
+    'T 1.3 : dimensionner les constituants de l’installation',
+    'T 1.4 : définir les coûts pour préparer une offre commerciale',
+    'T 2.1 : choisir les matériels',
+    'T 2.2 : réaliser les documents techniques du projet/chantier',
+    'T 3.1 : proposer un protocole pour analyser le fonctionnement et/ou le comportement de l’installation',
+    'T 3.2 : mesurer et contrôler l’installation, exploiter les mesures pour faire le diagnostic',
+    'T 3.3 : formuler des préconisations',
+    'T 4.1 : organiser la maintenance',
+    'T 4.2 : réaliser la maintenance préventive ou prévisionnelle',
+    'T 4.3 : réaliser la maintenance corrective',
+    'T 5.1 : s’approprier et vérifier les informations relatives au projet/chantier',
+    'T 5.2 : planifier les étapes du projet/chantier',
+    'T 5.3 : assurer le suivi de la réalisation du projet/chantier (coûts, délais, qualité)',
+    'T 5.4 : faire appliquer les règles liées à la santé, la sécurité et l’environnement',
+    'T 5.5 : gérer et animer l’équipe projet/chantier',
+    'T 6.1 : organiser l’espace de travail',
+    'T 6.2 : implanter, poser, installer, câbler, raccorder les matériels électriques',
+    'T 6.3 : programmer les applications métiers',
+    'T 7.1 : réaliser les contrôles, les configurations, les essais fonctionnels',
+    'T 7.2 : vérifier le fonctionnement de l’installation',
+    'T 7.3 : réceptionner l’installation avec le client/utilisateur',
+    'T 8.1 : constituer et mettre à jour les dossiers du projet/chantier',
+    'T 8.2 : échanger, y compris en langue anglaise, avec les parties prenantes du projet/chantier',
+    'T 8.3 : expliquer, y compris en langue anglaise, le fonctionnement de l’installation et former le client/utilisateur à son utilisation',
+    'T 8.4 : préparer et animer des réunions',
+    'T 8.5 : présenter et argumenter, y compris en langue anglaise, une offre à un client/utilisateur'
   ];
 
-  const availableTasks = [
-    'T3.1 : proposer un protocole pour analyser le fonctionnement et/ou le comportement de l\'installation.',
-    'T3.2 : mesurer et contrôler l\'installation, exploiter les mesures pour faire le diagnostic.',
-    'T3.3 : Formuler des préconisations.'
-  ];
+  // Référentiel - Liste complète des compétences (C1..C18)
+  const COMPETENCE_LABELS = {
+    'C1': 'recenser et prendre en compte les normes, les réglementations applicables au projet/chantier',
+    'C2': 'extraire les informations nécessaires à la réalisation des tâches',
+    'C3': 'gérer les risques et les aléas liés à la réalisation des tâches',
+    'C4': 'communiquer de manière adaptée à l\'oral, à l\'écrit, y compris en langue anglaise',
+    'C5': 'interpréter un besoin client/utilisateur, un CCTP, un cahier des charges',
+    'C6': 'modéliser le comportement de tout ou partie d’un ouvrage, d’une installation, d’un équipement électrique',
+    'C7': 'simuler le comportement de tout ou partie d’un ouvrage, d’une installation, d’un équipement électrique',
+    'C8': 'dimensionner les constituants d’un ouvrage, d’une installation, d’un équipement électrique',
+    'C9': 'choisir les constituants d’un ouvrage, d’une installation, d’un équipement électrique',
+    'C10': 'proposer l’architecture d’un ouvrage, d’une installation, d’un équipement électrique',
+    'C11': 'réaliser les documents du projet/chantier (plans, schémas, maquette virtuelle, etc.)',
+    'C12': 'gérer et conduire (y compris avec les documents de : organisation, planification, suivi, pilotage, réception, etc.) le projet/chantier',
+    'C13': 'mesurer les grandeurs caractéristiques d’un ouvrage, d’une installation, d’un équipement électrique',
+    'C14': 'réaliser un ouvrage, une installation, un équipement électrique',
+    'C15': 'configurer et programmer les matériels dans le cadre du projet/chantier',
+    'C16': 'appliquer un protocole pour mettre en service un ouvrage, une installation, un équipement électrique',
+    'C17': 'réaliser un diagnostic de performance y compris énergétique, de sécurité, d’un ouvrage, d’une installation, d’un équipement électrique',
+    'C18': 'réaliser des opérations de maintenance sur un ouvrage, une installation, un équipement électrique'
+  };
+  const ALL_COMPETENCIES = Object.entries(COMPETENCE_LABELS).map(([k, v]) => `${k} : ${v}`);
+
+  // Référentiel - Correspondances Tâche -> Compétences
+  const TASK_TO_COMPETENCIES = {
+    'T 5.2': ['C1', 'C10'], 'T 5.4': ['C1', 'C3'],
+    'T 3.1': ['C2'], 'T 4.1': ['C2'], 'T 4.2': ['C2', 'C13', 'C18'], 'T 4.3': ['C2', 'C13', 'C17', 'C18'],
+    'T 5.3': ['C3'], 
+    'T 7.3': ['C4'], 'T 8.2': ['C4', 'C12'], 'T 8.3': ['C4'], 'T 8.4': ['C4'], 'T 8.5': ['C4', 'C5', 'C10'],
+    'T 1.1': ['C5'], 'T 1.2': ['C5', 'C6', 'C8', 'C10'], 'T 1.3': ['C5', 'C6', 'C8'], 'T 1.4': ['C5'],
+    'T 2.1': ['C7', 'C9'], 'T 2.2': ['C11'], 
+    'T 5.1': ['C12'], 'T 5.5': ['C12'],
+    'T 3.2': ['C13', 'C17'], 'T 3.3': ['C17'],
+    'T 6.1': ['C14'], 'T 6.2': ['C14'],
+    'T 6.3': ['C15'], 'T 7.1': ['C15', 'C16'], 'T 7.2': ['C15', 'C16'],
+    'T 8.1': ['C11']
+  };
+
+  // Listes disponibles pour les modaux
+  const availableTasks = ALL_TASKS;
+  const availableCompetencies = ALL_COMPETENCIES;
 
   const availableEquipment = [
     'Pont roulant - Ledent',
@@ -80,8 +145,19 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   };
 
   const handleCompetenciesModalSave = () => {
-    const competenciesText = selectedCompetencies.join('\n');
-    setContent(prev => ({ ...prev, competencies: competenciesText }));
+    // Calculer les ajouts manuels sélectionnés par l'utilisateur
+    const newManual = selectedCompetencies.filter(c => !autoCompetencies.includes(c));
+    setManualCompetencies(newManual);
+
+    // Calculer les compétences auto explicitement retirées par l'utilisateur
+    const newExcludedAuto = autoCompetencies.filter(c => !selectedCompetencies.includes(c));
+    setExcludedAutoCompetencies(newExcludedAuto);
+
+    // Appliquer l'exclusion aux auto et fusionner
+    const effectiveAuto = autoCompetencies.filter(c => !newExcludedAuto.includes(c));
+    const merged = Array.from(new Set([...newManual, ...effectiveAuto]));
+    setSelectedCompetencies(merged);
+    setContent(prev => ({ ...prev, competencies: merged.join('\n') }));
     setShowCompetenciesModal(false);
   };
 
@@ -96,7 +172,23 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
 
   const handleTasksModalSave = () => {
     const tasksText = selectedTasks.join('\n');
-    setContent(prev => ({ ...prev, tasks: tasksText }));
+    // Déterminer les compétences associées aux tâches sélectionnées
+    const detectedCompetenceCodes = new Set();
+    selectedTasks.forEach(task => {
+      const code = task.split(':')[0].trim(); // ex "T 3.2"
+      const linked = TASK_TO_COMPETENCIES[code] || [];
+      linked.forEach(c => detectedCompetenceCodes.add(c));
+    });
+    // Convertir en libellés "Cxx : label"
+    const autoList = Array.from(detectedCompetenceCodes).map(c => `${c} : ${COMPETENCE_LABELS[c]}`);
+    setAutoCompetencies(autoList);
+    // Appliquer les exclusions auto si existantes
+    const effectiveAuto = autoList.filter(c => !(excludedAutoCompetencies || []).includes(c));
+    const merged = Array.from(new Set([...(manualCompetencies || []), ...effectiveAuto]));
+    setSelectedCompetencies(merged);
+    // Mettre à jour le texte
+    const competenciesText = merged.join('\n');
+    setContent(prev => ({ ...prev, tasks: tasksText, competencies: competenciesText }));
     setShowTasksModal(false);
   };
 
@@ -165,7 +257,9 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
       });
 
       if (editingSheet.competencies) {
-        setSelectedCompetencies(editingSheet.competencies.split('\n').filter(c => c.trim()));
+        const comps = editingSheet.competencies.split('\n').filter(c => c.trim());
+        setSelectedCompetencies(comps);
+        setManualCompetencies(comps); // tout est considéré manuel au chargement
       }
       if (editingSheet.tasks) {
         setSelectedTasks(editingSheet.tasks.split('\n').filter(t => t.trim()));
