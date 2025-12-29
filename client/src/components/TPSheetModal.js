@@ -477,12 +477,10 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
             </div>
         ` : ''}
         
-        ${content.workRequired ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">7. Travail Demandé</div>
-          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.workRequired}</div>
-            </div>
-        ` : ''}
+          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${(content.workRequired || '').trim()}</div>
+        </div>
         
         ${content.evaluation ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
