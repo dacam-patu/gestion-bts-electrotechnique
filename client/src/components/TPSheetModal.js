@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Save, Download, Printer, Eye, CheckSquare, ListChecks, Wrench, FileText } from 'lucide-react';
+import { COMPETENCE_CRITERIA } from '../data/competenceCriteria';
 
 const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   console.log('🔍 TPSheetModal render - isOpen:', isOpen);
@@ -43,6 +44,11 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [customDocument, setCustomDocument] = useState('');
   const [isPrinting, setIsPrinting] = useState(false);
+  // Critères d'évaluation
+  const [autoCriteria, setAutoCriteria] = useState([]);
+  const [manualCriteria, setManualCriteria] = useState([]);
+  const [excludedAutoCriteria, setExcludedAutoCriteria] = useState([]);
+  const [customCriterion, setCustomCriterion] = useState('');
 
   // Référentiel - Liste des tâches (mêmes libellés que Référentiel > Liste des tâches)
   const ALL_TASKS = [
@@ -158,6 +164,8 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
     const merged = Array.from(new Set([...newManual, ...effectiveAuto]));
     setSelectedCompetencies(merged);
     setContent(prev => ({ ...prev, competencies: merged.join('\n') }));
+    // Mettre à jour les critères d'observation proposés
+    updateCriteriaFromSelected(merged);
     setShowCompetenciesModal(false);
   };
 
@@ -189,7 +197,58 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
     // Mettre à jour le texte
     const competenciesText = merged.join('\n');
     setContent(prev => ({ ...prev, tasks: tasksText, competencies: competenciesText }));
+    // Mettre à jour les critères d'observation proposés
+    updateCriteriaFromSelected(merged);
     setShowTasksModal(false);
+  };
+
+  // Utilitaires pour gérer les critères d'observation
+  const extractCodes = (competencyItems) => {
+    // Items format "C1 : label" -> "C1"
+    return (competencyItems || []).map(it => (it.split(':')[0] || '').trim()).filter(Boolean);
+  };
+
+  const updateCriteriaFromSelected = (competencyItems) => {
+    const codes = extractCodes(competencyItems);
+    // Union de tous les critères liés aux codes
+    const nextAuto = Array.from(new Set(
+      codes.flatMap(c => COMPETENCE_CRITERIA[c] || [])
+    ));
+    setAutoCriteria(nextAuto);
+    const effectiveAuto = nextAuto.filter(cr => !(excludedAutoCriteria || []).includes(cr));
+    const mergedCriteria = Array.from(new Set([...(manualCriteria || []), ...effectiveAuto]));
+    setContent(prev => ({ ...prev, evaluation: mergedCriteria.join('\n') }));
+  };
+
+  const handleAddCriterion = () => {
+    const value = (customCriterion || '').trim();
+    if (!value) return;
+    const nextManual = Array.from(new Set([...(manualCriteria || []), value]));
+    setManualCriteria(nextManual);
+    setCustomCriterion('');
+    const effectiveAuto = (autoCriteria || []).filter(cr => !(excludedAutoCriteria || []).includes(cr));
+    const merged = Array.from(new Set([...nextManual, ...effectiveAuto]));
+    setContent(prev => ({ ...prev, evaluation: merged.join('\n') }));
+  };
+
+  const handleRemoveCriterion = (criterion) => {
+    // S'il vient des manuels -> retirer des manuels
+    if ((manualCriteria || []).includes(criterion)) {
+      const nextManual = manualCriteria.filter(c => c !== criterion);
+      setManualCriteria(nextManual);
+      const effectiveAuto = (autoCriteria || []).filter(cr => !(excludedAutoCriteria || []).includes(cr));
+      const merged = Array.from(new Set([...nextManual, ...effectiveAuto]));
+      setContent(prev => ({ ...prev, evaluation: merged.join('\n') }));
+      return;
+    }
+    // S'il vient des auto -> l'exclure
+    if ((autoCriteria || []).includes(criterion)) {
+      const nextExcluded = Array.from(new Set([...(excludedAutoCriteria || []), criterion]));
+      setExcludedAutoCriteria(nextExcluded);
+      const effectiveAuto = autoCriteria.filter(cr => !nextExcluded.includes(cr));
+      const merged = Array.from(new Set([...(manualCriteria || []), ...effectiveAuto]));
+      setContent(prev => ({ ...prev, evaluation: merged.join('\n') }));
+    }
   };
 
   // Fonctions pour les équipements
@@ -805,13 +864,47 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
                   <span className="bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3">9</span>
                   Critères d'Évaluation
                 </h4>
-                  <textarea
-                  value={content.evaluation}
-                  onChange={(e) => setContent({...content, evaluation: e.target.value})}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:ring focus:ring-red-200 transition-all"
-                  rows={5}
-                  placeholder="Décrivez les critères d'évaluation..."
-                />
+                <div className="space-y-3">
+                  {/* Liste des critères actuels avec suppression */}
+                  <div className="border-2 border-dashed border-red-200 rounded-lg p-4 min-h-[80px]">
+                    {(content.evaluation?.split('\n').filter(c => c.trim()) || []).length === 0 ? (
+                      <div className="text-center text-gray-400">Aucun critère. Sélectionnez des compétences ou ajoutez vos critères.</div>
+                    ) : (
+                      <ul className="space-y-2">
+                        {content.evaluation.split('\n').filter(c => c.trim()).map((cr, idx) => (
+                          <li key={`${cr}-${idx}`} className="flex items-start justify-between bg-red-50 border border-red-100 rounded px-3 py-2">
+                            <span className="text-sm text-gray-800 pr-3">{cr}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCriterion(cr)}
+                              className="text-red-600 hover:text-red-800 text-xs font-semibold"
+                              title="Supprimer ce critère"
+                            >
+                              Retirer
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  {/* Ajout manuel d'un critère */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={customCriterion}
+                      onChange={(e) => setCustomCriterion(e.target.value)}
+                      placeholder="Ajouter un critère personnalisé…"
+                      className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:ring focus:ring-red-200 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCriterion}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+                    >
+                      Ajouter
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Section Sécurité */}
