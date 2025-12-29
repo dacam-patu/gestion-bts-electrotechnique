@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { taskDetails } from './ReferentielDescriptionActivites';
 
 const competencies = [
   { code: 'C1', label: 'recenser et prendre en compte les normes, les réglementations applicables au projet/chantier' },
@@ -70,6 +71,7 @@ const TASK_TO_COMPETENCIES = {
 
 export default function ReferentielCompetencesTaches() {
   const navigate = useNavigate();
+  const [openedTask, setOpenedTask] = useState(null);
   const [query, setQuery] = useState('');
   const [view, setView] = useState('byCompetence'); // 'byCompetence' | 'byTask'
 
@@ -200,7 +202,7 @@ export default function ReferentielCompetencesTaches() {
                     key={t.code}
                     id={encodeURIComponent(t.code)}
                     className="align-top hover:bg-blue-50 cursor-pointer"
-                    onClick={() => navigate(`/referentiel/description-activites?task=${encodeURIComponent(t.code)}`)}
+                    onClick={() => setOpenedTask({ code: t.code, label: t.label })}
                   >
                     <td className="px-4 py-3 font-semibold text-gray-800">
                       <span className="text-blue-700 underline">{t.code}</span>
@@ -233,6 +235,107 @@ export default function ReferentielCompetencesTaches() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Modal fiche tâche (restons sur la page) */}
+      {openedTask && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black bg-opacity-40 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-4xl bg-white rounded-lg shadow-xl overflow-hidden">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {openedTask.code} · {openedTask.label}
+                </h3>
+              </div>
+              <button
+                onClick={() => setOpenedTask(null)}
+                className="text-gray-500 hover:text-gray-700 rounded-md px-2 py-1"
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {(() => {
+              const details = taskDetails[openedTask.code] || null;
+              const selectedAuto = new Set();
+              if (details?.autonomie) selectedAuto.add(details.autonomie);
+              const selectedResp = new Set(details?.responsabilites || []);
+              return (
+                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                  <section>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Description</h4>
+                    {details?.description ? (
+                      <ul className="list-disc ml-5 space-y-1 text-sm text-gray-700">
+                        {details.description.map((d, i) => <li key={i}>{d}</li>)}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-500">Contenu à compléter.</p>
+                    )}
+                  </section>
+
+                  <section>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Moyens et ressources</h4>
+                    {details?.ressources ? (
+                      <ul className="list-disc ml-5 space-y-1 text-sm text-gray-700">
+                        {details.ressources.map((d, i) => <li key={i}>{d}</li>)}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-500">Contenu à compléter.</p>
+                    )}
+                  </section>
+
+                  <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="border rounded-md p-3">
+                      <div className="text-xs font-semibold text-gray-700 mb-2">Autonomie</div>
+                      <div className="flex items-center space-x-4 text-sm">
+                        <label className="inline-flex items-center space-x-2">
+                          <input type="checkbox" className="h-4 w-4" disabled checked={selectedAuto.has('Partielle')} onChange={() => {}} />
+                          <span>Partielle</span>
+                        </label>
+                        <label className="inline-flex items-center space-x-2">
+                          <input type="checkbox" className="h-4 w-4" disabled checked={selectedAuto.has('Totale')} onChange={() => {}} />
+                          <span>Totale</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div className="border rounded-md p-3">
+                      <div className="text-xs font-semibold text-gray-700 mb-2">Responsabilité</div>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        {['Des personnes', 'Des moyens', 'Du résultat'].map((label) => (
+                          <label key={label} className="inline-flex items-center space-x-2">
+                            <input type="checkbox" className="h-4 w-4" disabled checked={selectedResp.has(label)} onChange={() => {}} />
+                            <span>{label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+
+                  <section>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Résultats attendus</h4>
+                    {details?.resultats ? (
+                      <ul className="list-disc ml-5 space-y-1 text-sm text-gray-700">
+                        {details.resultats.map((d, i) => <li key={i}>{d}</li>)}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-500">Contenu à compléter.</p>
+                    )}
+                  </section>
+                </div>
+              );
+            })()}
+
+            <div className="px-6 py-3 border-t bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setOpenedTask(null)}
+                className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
