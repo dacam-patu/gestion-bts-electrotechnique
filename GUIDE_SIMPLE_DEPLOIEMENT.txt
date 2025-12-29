@@ -1,0 +1,530 @@
+================================================================================
+    GUIDE SIMPLE - DEPLOIEMENT SUR LWS CPANEL
+    (Version texte - Ouvrir avec Bloc-notes)
+================================================================================
+
+BONJOUR !
+
+Ce guide va vous expliquer TRES SIMPLEMENT comment deployer votre application
+sur votre hebergement LWS avec cPanel.
+
+Prenez votre temps, suivez chaque etape, et tout ira bien !
+
+================================================================================
+ETAPE 1 : PREPARER LES FICHIERS SUR VOTRE PC (5 minutes)
+================================================================================
+
+1. Ouvrez PowerShell dans ce dossier :
+   - Clic droit sur le dossier
+   - "Ouvrir dans le terminal" ou "Ouvrir PowerShell ici"
+
+2. Tapez cette commande et appuyez sur Entree :
+   
+   .\deploy-to-lws.bat
+
+3. Attendez... Un dossier "deploy" va etre cree (environ 1 minute)
+
+4. Quand c'est fini, vous avez un nouveau dossier "deploy"
+
+5. Compressez ce dossier en ZIP :
+   - Clic droit sur le dossier "deploy"
+   - "Envoyer vers" > "Dossier compresse"
+   - Vous avez maintenant : deploy.zip
+
+RESULTAT : Vous avez le fichier deploy.zip pret a etre uploade !
+
+================================================================================
+ETAPE 2 : SE CONNECTER A CPANEL (2 minutes)
+================================================================================
+
+1. Ouvrez votre navigateur (Chrome, Firefox, Edge...)
+
+2. Allez sur : https://panel.lws.fr
+   (ou l'adresse que LWS vous a donnee)
+
+3. Connectez-vous avec vos identifiants LWS
+
+4. Une fois connecte, cherchez et cliquez sur "cPanel"
+
+5. Vous etes maintenant dans cPanel !
+
+RESULTAT : Vous voyez l'interface cPanel avec plein d'icones
+
+================================================================================
+ETAPE 3 : UPLOADER LES FICHIERS (5 minutes)
+================================================================================
+
+PARTIE A - Creer un dossier
+
+1. Dans cPanel, cherchez la section "FICHIERS"
+
+2. Cliquez sur "Gestionnaire de fichiers"
+   (icone avec un dossier)
+
+3. Une nouvelle fenetre s'ouvre
+   A gauche, vous voyez une liste de dossiers
+
+4. Cliquez sur "public_html" pour l'ouvrir
+
+5. En haut, cliquez sur le bouton "+ Dossier"
+
+6. Nommez le dossier : u52-app
+
+7. Cliquez sur "Creer un nouveau dossier"
+
+RESULTAT : Vous avez un dossier "u52-app" dans public_html
+
+
+PARTIE B - Upload du fichier ZIP
+
+1. Double-cliquez sur le dossier "u52-app" pour l'ouvrir
+
+2. En haut, cliquez sur le bouton "Upload" (icone fleche vers le haut)
+
+3. Une nouvelle page s'ouvre
+
+4. Cliquez sur "Selectionner un fichier"
+
+5. Trouvez et selectionnez votre fichier "deploy.zip"
+   (celui que vous avez cree a l'etape 1)
+
+6. L'upload commence... Attendez que la barre verte soit a 100%
+   (Cela peut prendre 2-5 minutes)
+
+7. Une fois termine, fermez la fenetre d'upload
+   (cliquez sur le X ou "Retour au gestionnaire")
+
+RESULTAT : Le fichier deploy.zip est dans le dossier u52-app
+
+
+PARTIE C - Extraire le ZIP
+
+1. Vous etes dans le dossier u52-app
+   Vous devez voir le fichier "deploy.zip"
+
+2. Clic droit sur "deploy.zip"
+
+3. Dans le menu, selectionnez "Extraire"
+
+4. Une fenetre s'ouvre
+   Verifiez que le chemin affiche : /home/votre-user/public_html/u52-app/
+
+5. Cliquez sur "Extract File(s)"
+
+6. Attendez... (environ 30 secondes)
+
+7. Message "Extraction complete" apparait
+   Cliquez sur "Close"
+
+RESULTAT : Vous avez maintenant un dossier "deploy" dans u52-app
+
+
+PARTIE D - Reorganiser les fichiers
+
+Maintenant vous avez :
+  u52-app/
+    deploy.zip
+    deploy/
+      public/
+      server/
+      etc.
+
+On veut deplacer le contenu de "deploy/" directement dans "u52-app/"
+
+1. Double-cliquez sur le dossier "deploy" pour l'ouvrir
+
+2. En haut, cliquez sur "Tout selectionner"
+   (ou appuyez sur Ctrl+A)
+
+3. En haut, cliquez sur "Deplacer"
+
+4. Dans la fenetre qui s'ouvre, entrez le chemin :
+   /home/votre-user/public_html/u52-app/
+   
+   ATTENTION : Remplacez "votre-user" par votre vrai nom d'utilisateur
+
+5. Cliquez sur "Move File(s)"
+
+6. Retournez dans le dossier u52-app (cliquez sur "u52-app" en haut)
+
+7. Vous pouvez maintenant supprimer :
+   - Le dossier vide "deploy"
+   - Le fichier "deploy.zip"
+
+RESULTAT : Vous avez maintenant dans u52-app :
+  - Le dossier "public"
+  - Le dossier "server"
+  - Le dossier "logs"
+  - Les fichiers package.json, start-production.js, etc.
+
+================================================================================
+ETAPE 4 : CONFIGURER NODE.JS (5 minutes)
+================================================================================
+
+PARTIE A - Creer l'application Node.js
+
+1. Retournez a la page d'accueil de cPanel
+   (cliquez sur le logo cPanel en haut a gauche)
+
+2. Descendez jusqu'a la section "LOGICIELS" ou "SOFTWARE"
+
+3. Cherchez "Setup Node.js App" (icone verte)
+   Si vous ne le trouvez pas, utilisez la barre de recherche en tapant "node"
+
+4. Cliquez sur "Setup Node.js App"
+
+5. Vous arrivez sur une nouvelle page
+
+6. Cliquez sur le bouton "Create Application" (en haut)
+
+7. Remplissez le formulaire :
+
+   Node.js version : Selectionnez la plus recente (18.x ou 20.x)
+   
+   Application mode : Selectionnez "Production"
+   
+   Application root : Tapez : u52-app
+   
+   Application URL : Laissez vide ou tapez : u52-app
+   
+   Application startup file : Tapez : start-production.js
+
+8. Cliquez sur "CREATE" (bouton en bas du formulaire)
+
+9. Attendez... (10-20 secondes)
+
+10. Message de confirmation "Application created successfully"
+
+RESULTAT : Votre application Node.js est creee !
+
+
+PARTIE B - Ajouter les variables d'environnement
+
+Sur la meme page, descendez jusqu'a la section "Environment Variables"
+
+Pour CHAQUE variable ci-dessous, repetez ces etapes :
+
+1. Cliquez sur "+ Add Variable"
+
+2. Dans "Name" : tapez le NOM de la variable
+
+3. Dans "Value" : tapez la VALEUR de la variable
+
+4. Cliquez sur "Save"
+
+VARIABLES A AJOUTER :
+
+Variable 1 :
+  Name  : NODE_ENV
+  Value : production
+
+Variable 2 :
+  Name  : PORT
+  Value : 3001
+
+Variable 3 :
+  Name  : JWT_SECRET
+  Value : VotreSecretTresFort123!
+  
+  IMPORTANT : Changez cette valeur par quelque chose d'unique et complexe
+  Exemple : Kj8$mP2!xL9@vN5#qR7&wT3^yU6*zA1
+
+Variable 4 :
+  Name  : CORS_ORIGIN
+  Value : https://votre-domaine.fr
+  
+  IMPORTANT : Remplacez par votre VRAI domaine
+  Exemple : https://app.monlycee.fr
+  N'oubliez PAS le "https://"
+  Ne mettez PAS de "/" a la fin
+
+RESULTAT : Vous avez 4 variables d'environnement configurees
+
+
+PARTIE C - Installer les dependances
+
+Toujours sur la meme page, descendez jusqu'a voir :
+"Detected configuration files"
+
+Vous devez voir : "package.json detected in /home/user/u52-app"
+
+1. Cliquez sur le bouton "Run NPM Install"
+
+2. Attendez... (cela peut prendre 2-5 minutes)
+   Une barre de progression s'affiche
+
+3. Quand c'est termine, vous voyez :
+   "NPM packages installed successfully"
+
+RESULTAT : Toutes les dependances sont installees !
+
+================================================================================
+ETAPE 5 : CONFIGURER LE DOMAINE (3 minutes)
+================================================================================
+
+On va creer un sous-domaine pour votre application
+Exemple : app.votre-domaine.fr
+
+1. Retournez a la page d'accueil de cPanel
+
+2. Cherchez la section "DOMAINES"
+
+3. Cliquez sur "Sous-domaines"
+
+4. Remplissez le formulaire :
+
+   Sous-domaine : Tapez : app
+   (ou u52, ou evaluation, comme vous voulez)
+   
+   Domaine : Selectionnez votre domaine principal dans la liste
+   
+   Racine du document : TRES IMPORTANT !
+   Tapez : /home/votre-user/public_html/u52-app/public
+   
+   ATTENTION :
+   - Remplacez "votre-user" par votre vrai nom d'utilisateur
+   - Le chemin DOIT se terminer par "/public"
+
+5. Cliquez sur "Creer"
+
+6. Attendez... (5-10 secondes)
+
+7. Message de confirmation apparait
+
+RESULTAT : Votre sous-domaine est cree !
+Exemple : app.votre-domaine.fr
+
+================================================================================
+ETAPE 6 : ACTIVER HTTPS (SSL) (2 minutes)
+================================================================================
+
+On va activer le certificat SSL gratuit pour avoir HTTPS
+
+1. Retournez a la page d'accueil de cPanel
+
+2. Cherchez la section "SECURITE"
+
+3. Cliquez sur "SSL/TLS Status" ou "Let's Encrypt SSL"
+
+4. Vous voyez une liste de vos domaines
+
+5. Cochez la case a cote de votre sous-domaine
+   Exemple : [ ] app.votre-domaine.fr
+
+6. Cochez aussi "Include WWW versions" si l'option existe
+
+7. Cliquez sur "Run AutoSSL"
+
+8. Attendez... (30 secondes a 2 minutes)
+
+9. Vous voyez un message de succes
+   Le domaine passe dans "Domaines avec SSL actif"
+
+RESULTAT : Votre site est maintenant en HTTPS !
+
+================================================================================
+ETAPE 7 : DEMARRER L'APPLICATION (2 minutes)
+================================================================================
+
+1. Retournez dans "Setup Node.js App"
+   (page d'accueil cPanel > LOGICIELS > Setup Node.js App)
+
+2. Vous voyez votre application listee
+
+3. Cliquez sur le nom de votre application (u52-app)
+
+4. Verifiez que le statut est "Running" (en vert)
+
+5. Si le statut est "Stopped" :
+   - Cliquez sur le bouton "Start"
+   - Attendez 5-10 secondes
+   - Le statut devient "Running"
+
+6. Si le statut est deja "Running" :
+   - Cliquez quand meme sur "Restart" pour etre sur
+
+RESULTAT : L'application est demarree !
+
+================================================================================
+ETAPE 8 : VERIFICATION - CA MARCHE ! (2 minutes)
+================================================================================
+
+1. Ouvrez un nouvel onglet dans votre navigateur
+
+2. Allez sur : https://app.votre-domaine.fr
+   (remplacez par votre vrai sous-domaine)
+
+3. Attendez quelques secondes...
+
+4. VOUS DEVEZ VOIR : La page de connexion de l'application !
+
+5. Connectez-vous :
+   Nom d'utilisateur : admin
+   Mot de passe : admin123
+
+6. Vous voyez le tableau de bord !
+
+FELICITATIONS ! VOTRE APPLICATION EST EN LIGNE !
+
+================================================================================
+ETAPE 9 : SECURITE - A FAIRE IMMEDIATEMENT ! (2 minutes)
+================================================================================
+
+TRES IMPORTANT : Changez le mot de passe admin par defaut !
+
+1. Dans l'application, cliquez sur le menu "Utilisateurs"
+
+2. Trouvez l'utilisateur "admin"
+
+3. Cliquez sur "Modifier" (icone crayon)
+
+4. Section "Mot de passe"
+
+5. Entrez un NOUVEAU mot de passe FORT
+   - Au moins 12 caracteres
+   - Melange de lettres, chiffres, symboles
+   - Exemple : MonLycee2024!Secure
+
+6. Confirmez le mot de passe
+
+7. Cliquez sur "Enregistrer"
+
+8. Deconnectez-vous et reconnectez-vous avec le nouveau mot de passe
+
+RESULTAT : Votre compte admin est securise !
+
+================================================================================
+ETAPE 10 : MAINTENANCE REGULIERE
+================================================================================
+
+CHAQUE SEMAINE :
+
+Sauvegarder la base de donnees (TRES IMPORTANT !) :
+
+1. cPanel > Gestionnaire de fichiers
+
+2. Allez dans : public_html > u52-app > server > database
+
+3. Clic droit sur le fichier : u52.db
+
+4. Cliquez sur "Telecharger"
+
+5. Sauvegardez sur votre PC avec la date
+   Exemple : u52-backup-2024-10-09.db
+
+6. Gardez plusieurs sauvegardes (au moins 4 semaines)
+
+
+REDEMARRER L'APPLICATION (si besoin) :
+
+1. cPanel > Setup Node.js App
+
+2. Cliquez sur votre application
+
+3. Cliquez sur "Restart"
+
+
+CONSULTER LES LOGS (en cas de probleme) :
+
+1. cPanel > Setup Node.js App
+
+2. Cliquez sur votre application
+
+3. Descendez jusqu'a "Log file"
+
+4. Cliquez sur le lien pour voir les logs
+
+================================================================================
+PROBLEMES FREQUENTS ET SOLUTIONS
+================================================================================
+
+PROBLEME : Page blanche quand j'ouvre mon site
+
+SOLUTION :
+  1. Verifiez que le "Document root" du sous-domaine se termine par "/public"
+  2. cPanel > Sous-domaines > Modifier votre sous-domaine
+  3. Le chemin doit etre : /home/user/public_html/u52-app/public
+
+
+PROBLEME : Erreur 502 Bad Gateway
+
+SOLUTION :
+  1. L'application n'est pas demarree
+  2. cPanel > Setup Node.js App
+  3. Cliquez sur "Start" ou "Restart"
+
+
+PROBLEME : "Cannot find module"
+
+SOLUTION :
+  1. Les dependances ne sont pas installees
+  2. cPanel > Setup Node.js App > Votre application
+  3. Cliquez sur "Run NPM Install"
+  4. Attendez que ca se termine
+  5. Cliquez sur "Restart"
+
+
+PROBLEME : Erreur CORS dans la console du navigateur (F12)
+
+SOLUTION :
+  1. La variable CORS_ORIGIN n'est pas correcte
+  2. cPanel > Setup Node.js App > Votre application
+  3. Section "Environment Variables"
+  4. Verifiez que CORS_ORIGIN = https://votre-vrai-domaine.fr
+  5. Avec "https://" et SANS "/" a la fin
+  6. Modifiez si necessaire
+  7. Cliquez sur "Restart"
+
+
+PROBLEME : L'application ne demarre pas
+
+SOLUTION :
+  1. Consultez les logs pour voir l'erreur
+  2. cPanel > Setup Node.js App > Votre application > Log file
+  3. Cherchez les lignes avec "ERROR" ou "ERREUR"
+  4. Verifiez que tous les fichiers sont bien uploades
+  5. Verifiez que "Run NPM Install" a bien fonctionne
+
+================================================================================
+CONTACTS UTILES
+================================================================================
+
+Support LWS :
+  - Site aide : https://aide.lws.fr/
+  - Panel client : https://panel.lws.fr/
+  - Ticket de support : Via votre espace client
+
+En cas de probleme technique avec l'hebergement, n'hesitez pas a contacter
+le support LWS. Ils sont la pour vous aider !
+
+================================================================================
+FELICITATIONS !
+================================================================================
+
+Votre application U52 BTS Electrotechnique est maintenant :
+
+  - En ligne sur Internet
+  - Accessible via https://votre-domaine.fr
+  - Securisee avec SSL
+  - Prete a etre utilisee !
+
+Vous pouvez maintenant :
+
+  - Creer vos classes
+  - Importer vos etudiants
+  - Creer des evaluations
+  - Generer des grilles d'evaluation
+  - Gerer les fiches TP
+  - Et bien plus encore !
+
+BRAVO ! Vous avez reussi votre deploiement !
+
+================================================================================
+
+Questions ? Problemes ?
+
+Ouvrez le fichier FAQ_DEPLOIEMENT_LWS.md avec le Bloc-notes
+(ou demandez de l'aide !)
+
+================================================================================
+

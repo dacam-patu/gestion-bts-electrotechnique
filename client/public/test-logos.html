@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test des Logos de Coloration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .logo-container {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+        }
+        .info {
+            color: #666;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 Test des Logos de Coloration</h1>
+    <p>Cette page teste l'accessibilité des logos de coloration via HTTP.</p>
+
+    <div class="logo-container">
+        <img id="logo-reseaux" class="logo" src="/logo-ecole-reseaux.png" alt="Logo École des Réseaux" onload="showStatus('logo-reseaux', true)" onerror="showStatus('logo-reseaux', false)">
+        <div>
+            <strong>Logo École des Réseaux</strong><br>
+            <span class="info">Fichier: /logo-ecole-reseaux.png</span><br>
+            <span id="status-reseaux" class="status">Chargement...</span>
+        </div>
+    </div>
+
+    <div class="logo-container">
+        <img id="logo-protendem" class="logo" src="/logo-protendem.png" alt="Logo Protendem" onload="showStatus('logo-protendem', true)" onerror="showStatus('logo-protendem', false)">
+        <div>
+            <strong>Logo Protendem</strong><br>
+            <span class="info">Fichier: /logo-protendem.png</span><br>
+            <span id="status-protendem" class="status">Chargement...</span>
+        </div>
+    </div>
+
+    <div class="logo-container">
+        <img id="logo-test" class="logo" src="/logo-inexistant.png" alt="Logo Test (inexistant)" onload="showStatus('logo-test', true)" onerror="showStatus('logo-test', false)">
+        <div>
+            <strong>Logo Test (Inexistant)</strong><br>
+            <span class="info">Fichier: /logo-inexistant.png (devrait échouer)</span><br>
+            <span id="status-test" class="status">Chargement...</span>
+        </div>
+    </div>
+
+    <script>
+        function showStatus(logoId, success) {
+            const statusElement = document.getElementById('status-' + logoId.replace('logo-', ''));
+            if (success) {
+                statusElement.textContent = '✅ Chargé avec succès';
+                statusElement.className = 'status success';
+            } else {
+                statusElement.textContent = '❌ Erreur de chargement';
+                statusElement.className = 'status error';
+            }
+        }
+
+        // Test d'accessibilité après 2 secondes
+        setTimeout(() => {
+            console.log('🎨 Test des logos terminé');
+            console.log('Logo École des Réseaux:', document.getElementById('logo-reseaux').complete ? '✅' : '❌');
+            console.log('Logo Protendem:', document.getElementById('logo-protendem').complete ? '✅' : '❌');
+        }, 2000);
+    </script>
+</body>
+</html>

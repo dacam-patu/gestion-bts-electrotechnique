@@ -1,0 +1,19 @@
+{
+  "name": "planning-epreuve-u52",
+  "version": "1.0.0",
+  "description": "Application web de planification et de suivi de l'épreuve U52 en BTS Électrotechnique",
+  "main": "server/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "keywords": ["bts", "electrotechnique", "u52", "planification", "epreuve"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  }
+} 

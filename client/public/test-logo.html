@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Logo PATU</title>
+</head>
+<body>
+    <h1>Test du Logo PATU</h1>
+    
+    <h2>Test 1: Chemin direct</h2>
+    <img src="logo patu.png" alt="Logo PATU" style="height: 100px; border: 1px solid red;">
+    
+    <h2>Test 2: Chemin avec /</h2>
+    <img src="/logo patu.png" alt="Logo PATU" style="height: 100px; border: 1px solid blue;">
+    
+    <h2>Test 3: Chemin avec /public/</h2>
+    <img src="/public/logo patu.png" alt="Logo PATU" style="height: 100px; border: 1px solid green;">
+    
+    <h2>Test 4: URL complète</h2>
+    <img src="http://localhost:3001/logo patu.png" alt="Logo PATU" style="height: 100px; border: 1px solid purple;">
+    
+    <script>
+        // Test JavaScript
+        const testPaths = [
+            'logo patu.png',
+            '/logo patu.png',
+            '/public/logo patu.png',
+            'http://localhost:3001/logo patu.png'
+        ];
+        
+        testPaths.forEach((path, index) => {
+            const img = new Image();
+            img.onload = () => console.log(`✅ Test ${index + 1} réussi: ${path}`);
+            img.onerror = () => console.log(`❌ Test ${index + 1} échoué: ${path}`);
+            img.src = path;
+        });
+    </script>
+</body>
+</html>

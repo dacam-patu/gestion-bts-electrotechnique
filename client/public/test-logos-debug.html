@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Logos Coloration</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .logo-test { margin: 20px; padding: 10px; border: 1px solid #ccc; }
+        .logo-test img { max-width: 100px; max-height: 100px; }
+    </style>
+</head>
+<body>
+    <h1>Test des Logos de Coloration</h1>
+    
+    <div class="logo-test">
+        <h3>Logo École des Réseaux</h3>
+        <img src="/logo-ecole-reseaux.png" alt="Logo École des Réseaux" 
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <p style="display:none; color:red;">❌ Logo École des Réseaux non trouvé</p>
+        <p>Chemin: /logo-ecole-reseaux.png</p>
+    </div>
+    
+    <div class="logo-test">
+        <h3>Logo Protendem</h3>
+        <img src="/logo-protendem.png" alt="Logo Protendem"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <p style="display:none; color:red;">❌ Logo Protendem non trouvé</p>
+        <p>Chemin: /logo-protendem.png</p>
+    </div>
+    
+    <div class="logo-test">
+        <h3>Test avec chemins relatifs</h3>
+        <img src="./logo-ecole-reseaux.png" alt="Logo École des Réseaux (relatif)"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <p style="display:none; color:red;">❌ Logo École des Réseaux (relatif) non trouvé</p>
+        
+        <img src="./logo-protendem.png" alt="Logo Protendem (relatif)"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <p style="display:none; color:red;">❌ Logo Protendem (relatif) non trouvé</p>
+    </div>
+    
+    <script>
+        // Test de chargement des images
+        const testImages = [
+            '/logo-ecole-reseaux.png',
+            '/logo-protendem.png',
+            './logo-ecole-reseaux.png',
+            './logo-protendem.png'
+        ];
+        
+        testImages.forEach(src => {
+            const img = new Image();
+            img.onload = () => console.log(`✅ ${src} - Chargé avec succès`);
+            img.onerror = () => console.log(`❌ ${src} - Erreur de chargement`);
+            img.src = src;
+        });
+    </script>
+</body>
+</html>
