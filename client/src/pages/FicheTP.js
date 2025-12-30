@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Plus, Search, Filter, Edit, Trash2, Eye, Printer } from 'lucide-react';
+import { FileText, Plus, Search, Filter, Edit, Trash2, Eye, Printer, Copy } from 'lucide-react';
 import TPSheetModal from '../components/TPSheetModal';
 import axios from 'axios';
 
@@ -113,6 +113,44 @@ const FicheTP = () => {
     }
   };
 
+  // Dupliquer une fiche et l'insérer juste en dessous
+  const handleDuplicateTPSheet = async (sheet) => {
+    try {
+      // Préparer le payload attendu par l'API (camelCase sur certains champs)
+      const payload = {
+        title: `${sheet.title || 'Fiche TP'} (copie)`,
+        subtitle: sheet.subtitle || '',
+        context: sheet.context || '',
+        objectives: sheet.objectives || '',
+        documents: sheet.documents || '',
+        tasks: sheet.tasks || '',
+        competencies: sheet.competencies || '',
+        workRequired: sheet.work_required || sheet.workRequired || '',
+        evaluation: sheet.evaluation || '',
+        equipment: sheet.equipment || '',
+        images: typeof sheet.images === 'string' ? sheet.images : JSON.stringify(sheet.images || {}),
+        duration: sheet.duration || '',
+        safety: sheet.safety || '',
+        controlQuestions: sheet.control_questions || sheet.controlQuestions || '',
+        observations: sheet.observations || '',
+        imageZone: sheet.image_zone || sheet.imageZone || ''
+      };
+      const response = await axios.post('/api/tp-sheets', payload);
+      const newSheet = response.data;
+      // Insérer localement juste sous l'original sans re-trier par created_at
+      setTpSheets((prev) => {
+        const idx = prev.findIndex((s) => s.id === sheet.id);
+        if (idx === -1) return [newSheet, ...prev];
+        const next = prev.slice();
+        next.splice(idx + 1, 0, newSheet);
+        return next;
+      });
+    } catch (error) {
+      console.error('❌ Erreur lors de la duplication de la fiche TP:', error);
+      alert('Erreur lors de la duplication de la fiche TP');
+    }
+  };
+
   // Fonctions pour le renommage
   const handleStartRename = (sheet) => {
     setRenamingSheet(sheet.id);
@@ -148,6 +186,20 @@ const FicheTP = () => {
     // Créer une nouvelle fenêtre pour l'impression avec taille optimisée pour le gestionnaire Windows
     const printWindow = window.open('', '_blank', 'width=1024,height=768,toolbar=no,menubar=no,location=no,status=no,scrollbars=yes');
     
+    // Préparer HTML des critères en liste à puces si non formaté
+    const evalRaw = (sheet.evaluation || '').toString();
+    const evalHasList = /<(ul|ol)\b/i.test(evalRaw);
+    const evalHtml = (() => {
+      if (evalHasList) return evalRaw;
+      const plain = evalRaw
+        .replace(/<\/p>\s*<p>/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/?p>/gi, '');
+      const lines = plain.split(/\n+/).map(s => s.trim()).filter(Boolean);
+      if (!lines.length) return '';
+      return `<ul>${lines.map(l => `<li>${l}</li>`).join('')}</ul>`;
+    })();
+    
     // Créer le contenu HTML propre pour l'impression
     const printHTML = `
       <html>
@@ -156,15 +208,15 @@ const FicheTP = () => {
           <style>
             @page {
               size: A4 portrait;
-              margin: 15mm;
+              margin: 10mm;
             }
             
             body { 
               font-family: 'Times New Roman', serif; 
               margin: 0; 
               padding: 10px;
-              font-size: 12px;
-              line-height: 1.4;
+              font-size: 22px;
+              line-height: 1.65;
               color: #000;
               background: white;
             }
@@ -172,7 +224,7 @@ const FicheTP = () => {
             /* Styles pour l'aperçu à l'écran et le gestionnaire Windows */
             @media screen {
               body {
-                font-size: 13px;
+                font-size: 20px;
                 padding: 15px;
                 background: white;
                 margin: 0;
@@ -207,42 +259,42 @@ const FicheTP = () => {
             }
             
             .school-info {
-              font-size: 10px;
+              font-size: 16px;
               line-height: 1.2;
               font-weight: bold;
             }
             
             .page-info {
               text-align: right;
-              font-size: 9px;
+              font-size: 14px;
               line-height: 1.2;
             }
             
             /* Tailles de police optimisées pour le gestionnaire Windows */
             @media screen {
               .school-info {
-                font-size: 12px;
-              }
-              .page-info {
-                font-size: 11px;
-              }
-              .title-section h1 {
                 font-size: 20px;
               }
+              .page-info {
+                font-size: 18px;
+              }
+              .title-section h1 {
+                font-size: 40px;
+              }
               .title-section h2 {
-                font-size: 16px;
+                font-size: 30px;
               }
               .duration {
-                font-size: 12px;
+                font-size: 20px;
               }
               .section-header {
-                font-size: 12px;
+                font-size: 24px;
               }
               .section-content {
-                font-size: 12px;
+                font-size: 22px;
               }
               .footer {
-                font-size: 11px;
+                font-size: 18px;
               }
             }
             
@@ -255,14 +307,14 @@ const FicheTP = () => {
             }
             
             .title-section h1 { 
-              font-size: 16px; 
+              font-size: 36px; 
               font-weight: bold; 
               margin: 0 0 5px 0;
               text-transform: uppercase;
             }
             
             .title-section h2 { 
-              font-size: 13px; 
+              font-size: 28px; 
               margin: 0 0 3px 0;
               font-weight: normal;
             }
@@ -271,7 +323,7 @@ const FicheTP = () => {
             .duration {
               text-align: center;
               margin: 10px 0 15px 0;
-              font-size: 10px;
+              font-size: 20px;
               font-weight: bold;
             }
             
@@ -285,7 +337,7 @@ const FicheTP = () => {
               color: white; 
               padding: 4px 8px; 
               font-weight: bold; 
-              font-size: 10px;
+              font-size: 22px;
               text-transform: uppercase;
             }
             
@@ -293,11 +345,14 @@ const FicheTP = () => {
               padding: 8px; 
               border: 1px solid #000; 
               border-top: none;
-              white-space: pre-line;
-              font-size: 10px;
-              line-height: 1.3;
-              min-height: 20px;
+              white-space: normal;
+              font-size: 22px;
+              line-height: 1.65;
+              min-height: 32px;
             }
+            .section-content ul { list-style: disc; padding-left: 18px; margin: 0; }
+            .section-content ol { list-style: decimal; padding-left: 18px; margin: 0; }
+            .section-content li { display: list-item; }
             
             /* Zone d'image */
             .image-section {
@@ -320,17 +375,37 @@ const FicheTP = () => {
             }
             
             @media print {
+              /* Utiliser des unités physiques pour garantir la taille réelle (réduction forte) */
               body { 
                 margin: 0; 
                 padding: 0;
                 -webkit-print-color-adjust: exact;
-                color-adjust: exact;
+                print-color-adjust: exact;
+                box-sizing: border-box;
+                font-size: 11pt;
+                line-height: 1.5;
               }
+              /* Activer le saut de page à l'impression */
+              .page-break {
+                display: block;
+                page-break-before: always;
+                break-before: page;
+              }
+              .title-section h1 { font-size: 18pt; }
+              .title-section h2 { font-size: 14pt; }
+              .duration { font-size: 11pt; }
+              .section-header { font-size: 13pt; }
+              /* revenir à la précédente (x1 supplémentaire): contenu 16pt */
+              .section-content { font-size: 16pt; line-height: 1.6; }
+              .school-info { font-size: 10pt; }
+              .page-info { font-size: 9pt; }
+              /* Pas de transformation d'échelle pour éviter les effets de zoom du driver */
+              #print-scale-wrapper { transform: none !important; width: auto !important; }
             }
           </style>
         </head>
         <body>
-          <div class="print-container">
+          <div id="print-scale-wrapper"><div class="print-container">
             <!-- En-tête -->
             <div class="header">
               <div class="logo-section">
@@ -400,6 +475,8 @@ const FicheTP = () => {
             </div>
             ` : ''}
 
+            <div class="page-break"></div>
+
             <!-- Section 7: Travail demandé -->
             <div class="section">
               <div class="section-header">7. Travail demandé</div>
@@ -409,7 +486,7 @@ const FicheTP = () => {
             <!-- Section 8: Évaluation -->
             <div class="section">
               <div class="section-header">8. Critères d'évaluation</div>
-              <div class="section-content">${sheet.evaluation || ''}</div>
+              <div class="section-content">${evalHtml}</div>
             </div>
 
             <!-- Section 9: Sécurité -->
@@ -418,7 +495,7 @@ const FicheTP = () => {
               <div class="section-content">${sheet.safety || ''}</div>
             </div>
 
-          </div>
+          </div></div>
         </body>
       </html>
     `;
@@ -630,6 +707,13 @@ const FicheTP = () => {
                           
                           {/* Boutons d'actions */}
                           <div className="flex flex-col space-y-2 ml-4">
+                            <button
+                              onClick={() => handleDuplicateTPSheet(sheet)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors border border-indigo-200"
+                              title="Dupliquer"
+                            >
+                              <Copy className="h-5 w-5" />
+                            </button>
                             <button
                               onClick={() => handlePrintTPSheet(sheet)}
                               className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors border border-green-200"

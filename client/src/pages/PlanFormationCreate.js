@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import axios from 'axios';
+import { Trash2, Pencil, Plus } from 'lucide-react';
 
 // Simple color palette for categories
 const CATEGORY_COLORS = {
@@ -8,7 +9,7 @@ const CATEGORY_COLORS = {
   projet: 'bg-violet-100 text-violet-800 border border-violet-200',
   sae: 'bg-violet-100 text-violet-800 border border-violet-200',
   evaluation: 'bg-red-100 text-red-800 border border-red-200',
-  vacance: 'bg-gray-200 text-gray-800',
+  vacance: 'bg-yellow-100 text-yellow-900 border border-yellow-200',
   feries: 'bg-gray-100 text-gray-700',
   stage: 'bg-blue-900 text-white',
   examens: 'bg-red-900 text-white',
@@ -172,12 +173,33 @@ const DEFAULT_DATA = {
       { label: 'Ascension', type: 'feries', debut: '2026-05-14', fin: '2026-05-14' },
     ],
   },
-  matieres: [
-    { id: 'M1', code: 'DIST-BT', nom: 'Électrotech — Distribution BT', type: 'tp', classe: 'BTS1', volumeSeances: 12, dureeSeanceH: 2 },
-    { id: 'M2', code: 'PROTEC', nom: 'Protections et Sélectivité', type: 'cours', classe: 'BTS1', volumeSeances: 8, dureeSeanceH: 2 },
-    { id: 'M3', code: 'TGBT', nom: 'TGBT & Schémas', type: 'projet', classe: 'BTS2', volumeSeances: 10, dureeSeanceH: 3 },
-    { id: 'M4', code: 'U51-MAINT', nom: 'U51 — Maintenance', type: 'evaluation', classe: 'BTS2', volumeSeances: 4, dureeSeanceH: 1 },
-  ],
+  // Deuxième année (BTS2) — valeurs par défaut pour 2026-2027
+  calendrier2: {
+    annee: '2026-2027',
+    dateDebut: '2026-08-17',
+    dateFin: '2027-07-04',
+    vacances: [
+      { label: 'Vacances Toussaint', type: 'vacance', debut: '2026-10-26', fin: '2026-11-08' },
+      { label: 'Vacances Noël', type: 'vacance', debut: '2026-12-21', fin: '2027-01-03' },
+      { label: 'Vacances Hiver', type: 'vacance', debut: '2027-02-22', fin: '2027-03-07' },
+    ],
+    stages: [
+      { label: 'Stage BTS2', type: 'stage', debut: '2027-04-26', fin: '2027-05-23', classes: ['BTS2'] },
+    ],
+    examens: [
+      { label: 'CCF U52', type: 'examens', debut: '2027-02-15', fin: '2027-02-21' },
+      { label: 'Écrits BTS', type: 'examens', debut: '2027-06-07', fin: '2027-06-20' },
+    ],
+    feries: [
+      { label: '1er novembre', type: 'feries', debut: '2026-11-01', fin: '2026-11-01' },
+      { label: '11 novembre', type: 'feries', debut: '2026-11-11', fin: '2026-11-11' },
+      { label: 'Lundi de Pâques', type: 'feries', debut: '2027-03-29', fin: '2027-03-29' },
+      { label: '1er mai', type: 'feries', debut: '2027-05-01', fin: '2027-05-01' },
+      { label: '8 mai', type: 'feries', debut: '2027-05-08', fin: '2027-05-08' },
+      { label: 'Ascension', type: 'feries', debut: '2027-05-13', fin: '2027-05-13' },
+    ],
+  },
+  matieres: [],
   // Profs désormais chargés depuis /api/users (role=teacher)
   profs: [],
   templates: [
@@ -287,12 +309,113 @@ const PeriodEditor = ({ title, items, onChange, type, showClasses = false }) => 
               </div>
             )}
             <div className={`${showClasses ? 'md:col-span-2' : 'md:col-span-2'}`}>
-              <button type="button" className="btn w-full" onClick={() => removeItem(idx)}>
-                Supprimer
+              <button
+                type="button"
+                className="btn w-full p-2 flex items-center justify-center"
+                title="Supprimer"
+                aria-label="Supprimer"
+                onClick={() => removeItem(idx)}
+              >
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+};
+
+// Modal d'édition du calendrier (année)
+const CalendarModal = ({ open, title, calendrier, onChangeCalendrier, onClose }) => {
+  const [local, setLocal] = useState(calendrier);
+  useEffect(() => {
+    if (open) setLocal(calendrier);
+  }, [open, calendrier]);
+  if (!open) return null;
+  const apply = () => {
+    onChangeCalendrier(local);
+    onClose();
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+      <div className="bg-white rounded-md shadow-lg w-full max-w-6xl max-h-[85vh] flex flex-col">
+        <div className="p-3 border-b flex items-center justify-between">
+          <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+          <div className="flex gap-2">
+            <button className="btn" onClick={onClose}>Annuler</button>
+            <button className="btn btn-primary" onClick={apply}>Valider</button>
+          </div>
+        </div>
+        <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Année scolaire</label>
+              <input
+                className="input"
+                value={local.annee}
+                onChange={(e) => setLocal({ ...local, annee: e.target.value })}
+              />
+            </div>
+            <div />
+            <div>
+              <label className="label">Début</label>
+              <input
+                type="date"
+                className="input"
+                value={local.dateDebut}
+                onChange={(e) => setLocal({ ...local, dateDebut: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">Fin</label>
+              <input
+                type="date"
+                className="input"
+                value={local.dateFin}
+                onChange={(e) => setLocal({ ...local, dateFin: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="mt-1">
+            <div className="text-sm font-medium text-gray-700">Périodes</div>
+            <div className="text-xs text-gray-500 mb-2">
+              Ajoutez, modifiez ou supprimez les périodes qui bloquent l&apos;emploi du temps.
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <PeriodEditor
+                title="Vacances"
+                type="vacance"
+                items={local.vacances}
+                onChange={(items) => setLocal({ ...local, vacances: items })}
+              />
+              <PeriodEditor
+                title="Jours fériés"
+                type="feries"
+                items={local.feries}
+                onChange={(items) => setLocal({ ...local, feries: items })}
+              />
+              <PeriodEditor
+                title="Périodes de stage"
+                type="stage"
+                showClasses
+                items={local.stages}
+                onChange={(items) => setLocal({ ...local, stages: items })}
+              />
+              <PeriodEditor
+                title="Examens"
+                type="examens"
+                items={local.examens}
+                onChange={(items) => setLocal({ ...local, examens: items })}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="p-3 border-t flex items-center justify-end gap-2">
+          <button className="btn" onClick={onClose}>Annuler</button>
+          <button className="btn btn-primary" onClick={apply}>Valider</button>
+        </div>
       </div>
     </div>
   );
@@ -365,8 +488,8 @@ const CompetencesModal = ({ open, onClose, selectedCodes = [], onSave }) => {
   );
 };
 
-// Editor for subjects (Matières / Modules)
-const SubjectEditor = ({ items, onChange, weeks }) => {
+// Modal d'ajout/édition d'une matière
+const SubjectModal = ({ open, initial, onSave, onClose, weeks1 = [], weeks2 = [], teachers = [], selectedTeacherId = '' }) => {
   const TYPE_OPTIONS = [
     { value: 'cours', label: 'Cours' },
     { value: 'tp', label: 'TP' },
@@ -375,7 +498,238 @@ const SubjectEditor = ({ items, onChange, weeks }) => {
     { value: 'evaluation', label: 'Évaluation' },
   ];
   const CLASSE_OPTIONS = ['BTS1', 'BTS2', 'BTS1+BTS2'];
-  const [modalIdx, setModalIdx] = useState(null);
+
+  const defaults = {
+    id: 'MX',
+    code: '',
+    nom: '',
+    type: 'cours',
+    classe: 'BTS1',
+    volumeSeances: 1,
+    dureeSeanceH: 1,
+    competences: [],
+    taches: [],
+  };
+
+  const [local, setLocal] = useState(initial || defaults);
+  const [showCompModal, setShowCompModal] = useState(false);
+  const [teacherId, setTeacherId] = useState(selectedTeacherId || '');
+
+  useEffect(() => {
+    if (open) {
+      setLocal(initial || defaults);
+      setTeacherId(selectedTeacherId || '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initial?.id, selectedTeacherId]);
+
+  if (!open) return null;
+
+  const weeksForClasse = (classe) => {
+    const c = String(classe || '').toUpperCase();
+    if (c.includes('BTS2')) return weeks2 || [];
+    return weeks1 || [];
+  };
+
+  const apply = () => {
+    onSave(local, teacherId);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+      <div className="bg-white rounded-md shadow-lg w-full max-w-3xl max-h-[85vh] flex flex-col">
+        <div className="p-4 border-b flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">{initial ? 'Modifier la matière' : 'Ajouter une matière'}</h3>
+          <button className="btn" onClick={onClose}>Fermer</button>
+        </div>
+        <div className="p-4 space-y-4 overflow-y-auto flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+            <div className="md:col-span-3">
+              <label className="label">Code</label>
+              <input className="input" value={local.code || ''} onChange={(e) => setLocal({ ...local, code: e.target.value })} />
+            </div>
+            <div className="md:col-span-5">
+              <label className="label">Intitulé</label>
+              <input className="input" value={local.nom || ''} onChange={(e) => setLocal({ ...local, nom: e.target.value })} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="label">Type</label>
+              <select
+                className="input"
+                value={local.type || 'cours'}
+                onChange={(e) => setLocal({ ...local, type: e.target.value })}
+              >
+                {TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="label">Classe</label>
+              <select
+                className="input"
+                value={local.classe || 'BTS1'}
+                onChange={(e) => setLocal({ ...local, classe: e.target.value })}
+              >
+                {CLASSE_OPTIONS.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div className="md:col-span-12">
+              <label className="label">Professeur</label>
+              <select
+                className="input w-full"
+                value={teacherId}
+                onChange={(e) => setTeacherId(e.target.value)}
+              >
+                <option value="">— Choisir un professeur —</option>
+                {teachers.map((t) => {
+                  const display = (t.first_name && t.last_name) ? `${t.first_name} ${t.last_name}` : t.username;
+                  return (
+                    <option key={t.id} value={t.id}>{display}</option>
+                  );
+                })}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+            <div className="md:col-span-3">
+              <label className="label">Séances</label>
+              <input
+                type="number"
+                min="0"
+                className="input"
+                value={local.volumeSeances ?? 0}
+                onChange={(e) => setLocal({ ...local, volumeSeances: Number(e.target.value) })}
+              />
+            </div>
+            <div className="md:col-span-3">
+              <label className="label">Durée séance (h)</label>
+              <input
+                type="number"
+                min="1"
+                className="input"
+                value={local.dureeSeanceH ?? 1}
+                onChange={(e) => setLocal({ ...local, dureeSeanceH: Number(e.target.value) })}
+              />
+            </div>
+            <div className="md:col-span-6">
+              <label className="label">Période de placement</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-xs text-gray-600">Début</span>
+                  <select
+                    className="input w-full"
+                    value={Number.isInteger(local.weekStartIndex) ? local.weekStartIndex : ''}
+                    onChange={(e) =>
+                      setLocal({
+                        ...local,
+                        weekStartIndex: e.target.value === '' ? undefined : Number(e.target.value),
+                      })
+                    }
+                  >
+                    <option value="">— Non défini —</option>
+                    {weeksForClasse(local.classe).map((w, i) => (
+                      <option key={i} value={i}>{w.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-600">Fin</span>
+                  <select
+                    className="input w-full"
+                    value={Number.isInteger(local.weekEndIndex) ? local.weekEndIndex : ''}
+                    onChange={(e) =>
+                      setLocal({
+                        ...local,
+                        weekEndIndex: e.target.value === '' ? undefined : Number(e.target.value),
+                      })
+                    }
+                  >
+                    <option value="">— Non défini —</option>
+                    {weeksForClasse(local.classe).map((w, i) => (
+                      <option key={i} value={i}>{w.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="text-[11px] text-gray-500 mt-1">
+                Si non défini, le placement commencera le plus tôt possible et/ou s’étendra jusqu’à la fin de l’année.
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="label">Compétences associées</label>
+            <div className="flex flex-wrap gap-2">
+              {(local.competences || []).length === 0 && (
+                <span className="text-xs text-gray-500">Aucune compétence. Cliquez sur “Ajouter des compétences”.</span>
+              )}
+              {(local.competences || []).map((code) => (
+                <span
+                  key={code}
+                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border"
+                  title={COMPETENCE_LABELS[code] || 'Compétence'}
+                >
+                  {code}
+                </span>
+              ))}
+            </div>
+            <div className="mt-2">
+              <button type="button" className="btn" onClick={() => setShowCompModal(true)}>
+                Ajouter / Modifier les compétences
+              </button>
+            </div>
+            <div className="mt-3">
+              <div className="text-xs text-gray-600 mb-1">Tâches associées (déduites des compétences sélectionnées)</div>
+              <div className="flex flex-wrap gap-1">
+                {(local.taches || []).length === 0 && (
+                  <span className="text-xs text-gray-500">Aucune tâche associée pour l’instant.</span>
+                )}
+                {(local.taches || []).map((tCode) => (
+                  <span
+                    key={tCode}
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-900 border border-blue-200"
+                    title={TASK_LABELS[tCode] || 'Tâche'}
+                  >
+                    {tCode}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 border-t flex items-center justify-end gap-2">
+          <button className="btn" onClick={onClose}>Annuler</button>
+          <button className="btn btn-primary" onClick={apply}>Valider</button>
+        </div>
+      </div>
+
+      <CompetencesModal
+        open={showCompModal}
+        onClose={() => setShowCompModal(false)}
+        selectedCodes={local.competences || []}
+        onSave={(codes) => {
+          const tasksSet = new Set();
+          codes.forEach((c) => (COMPETENCE_TO_TASKS[c] || []).forEach((t) => tasksSet.add(t)));
+          const tasks = Array.from(tasksSet).sort((a, b) => a.localeCompare(b, 'fr'));
+          setLocal((prev) => ({ ...prev, competences: codes, taches: tasks }));
+          setShowCompModal(false);
+        }}
+      />
+    </div>
+  );
+};
+
+// Editor for subjects (Matières / Modules)
+const SubjectEditor = ({ items, onChange, weeks1, weeks2, teachers = [], affectations = {}, onChangeAffectations = () => {} }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [editingTeacherId, setEditingTeacherId] = useState('');
 
   const nextId = () => {
     const nums = (items || [])
@@ -385,30 +739,42 @@ const SubjectEditor = ({ items, onChange, weeks }) => {
     return `M${max + 1}`;
   };
 
-  const add = () => {
+  const weeksForClasse = (classe) => {
+    const c = String(classe || '').toUpperCase();
+    if (c.includes('BTS2')) return weeks2 || [];
+    return weeks1 || [];
+  };
+
+  const weekLabel = (classe, idx) => {
+    if (!Number.isInteger(idx)) return '— Non défini —';
+    const arr = weeksForClasse(classe);
+    return arr[idx]?.label || `S${idx + 1}`;
+  };
+
+  const openAdd = () => {
     const id = nextId();
-    onChange([
-      ...(items || []),
-      {
-        id,
-        code: '',
-        nom: '',
-        type: 'cours',
-        classe: 'BTS1',
-        volumeSeances: 1,
-        dureeSeanceH: 1,
-      },
-    ]);
+    setDraft({
+      id,
+      code: '',
+      nom: '',
+      type: 'cours',
+      classe: 'BTS1',
+      volumeSeances: 1,
+      dureeSeanceH: 1,
+      competences: [],
+      taches: [],
+    });
+    setEditingIndex(null);
+    setEditingTeacherId('');
+    setIsModalOpen(true);
   };
 
-  const update = (idx, field, value) => {
-    const next = (items || []).map((m, i) => (i === idx ? { ...m, [field]: value } : m));
-    onChange(next);
-  };
-
-  const updateMany = (idx, patch) => {
-    const next = (items || []).map((m, i) => (i === idx ? { ...m, ...patch } : m));
-    onChange(next);
+  const openEdit = (idx) => {
+    setDraft(items[idx]);
+    setEditingIndex(idx);
+    const id = items[idx]?.id;
+    setEditingTeacherId(affectations?.[id] || '');
+    setIsModalOpen(true);
   };
 
   const remove = (idx) => {
@@ -416,224 +782,75 @@ const SubjectEditor = ({ items, onChange, weeks }) => {
     onChange(next);
   };
 
-  // Removed prerequisites handling
+  const saveDraft = (subject, teacherId) => {
+    if (editingIndex === null || editingIndex === undefined) {
+      onChange([...(items || []), subject]);
+    } else {
+      const next = (items || []).map((m, i) => (i === editingIndex ? subject : m));
+      onChange(next);
+    }
+    // mettre à jour l'affectation professeur
+    const nextAff = { ...(affectations || {}) };
+    if (teacherId) nextAff[subject.id] = teacherId;
+    else delete nextAff[subject.id];
+    onChangeAffectations(nextAff);
+  };
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-800">Matières / Modules</h3>
-        <button type="button" className="btn btn-primary" onClick={add}>
+        <button type="button" className="btn btn-primary flex items-center gap-2" onClick={openAdd}>
+          <Plus className="w-4 h-4" />
           Ajouter une matière
         </button>
       </div>
+
       {(items || []).length === 0 && (
         <div className="text-xs text-gray-500">Aucune matière. Cliquez sur “Ajouter une matière”.</div>
       )}
-      {(items || []).map((m, idx) => (
-        <div key={m.id || idx} className="p-3 border rounded-md space-y-2">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
-            <div className="md:col-span-3">
-              <label className="label">Code</label>
-              <input
-                className="input"
-                placeholder="Ex: PROTEC"
-                value={m.code || ''}
-                onChange={(e) => update(idx, 'code', e.target.value)}
-              />
-            </div>
-            <div className="md:col-span-5">
-              <label className="label">Intitulé</label>
-              <input
-                className="input"
-                placeholder="Ex: Protections et Sélectivité"
-                value={m.nom || ''}
-                onChange={(e) => update(idx, 'nom', e.target.value)}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="label">Type</label>
-              <select
-                className="input"
-                value={m.type || 'cours'}
-                onChange={(e) => update(idx, 'type', e.target.value)}
-              >
-                {TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <label className="label">Classe</label>
-              <select
-                className="input"
-                value={m.classe || 'BTS1'}
-                onChange={(e) => update(idx, 'classe', e.target.value)}
-              >
-                {CLASSE_OPTIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
-            <div className="md:col-span-3">
-              <label className="label">Séances</label>
-              <input
-                type="number"
-                min="0"
-                className="input"
-                value={m.volumeSeances ?? 0}
-                onChange={(e) => update(idx, 'volumeSeances', Number(e.target.value))}
-              />
-            </div>
-            <div className="md:col-span-3">
-              <label className="label">Durée séance (h)</label>
-              <input
-                type="number"
-                min="1"
-                className="input"
-                value={m.dureeSeanceH ?? 1}
-                onChange={(e) => update(idx, 'dureeSeanceH', Number(e.target.value))}
-              />
-            </div>
-            {/* Priorité et Prérequis supprimés */}
-            <div className="md:col-span-6">
-              <label className="label">Période de placement</label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-xs text-gray-600">Début</span>
-                  <select
-                    className="input w-full"
-                    value={Number.isInteger(m.weekStartIndex) ? m.weekStartIndex : ''}
-                    onChange={(e) =>
-                      update(
-                        idx,
-                        'weekStartIndex',
-                        e.target.value === '' ? undefined : Number(e.target.value)
-                      )
-                    }
-                  >
-                    <option value="">— Non défini —</option>
-                    {(weeks || []).map((w, i) => (
-                      <option key={i} value={i}>
-                        {w.label}
-                      </option>
-                    ))}
-                  </select>
+
+      <div className="space-y-2">
+        {(items || []).map((m, idx) => (
+          <div key={m.id || idx} className="p-3 border rounded-md">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="font-medium text-gray-900 truncate">{m.nom || '(Sans intitulé)'}</div>
+                  <Badge colorClass={CATEGORY_COLORS[m.type] || CATEGORY_COLORS.cours}>
+                    {(m.type || '').toString().toUpperCase()}
+                  </Badge>
                 </div>
-                <div>
-                  <span className="text-xs text-gray-600">Fin</span>
-                  <select
-                    className="input w-full"
-                    value={Number.isInteger(m.weekEndIndex) ? m.weekEndIndex : ''}
-                    onChange={(e) =>
-                      update(
-                        idx,
-                        'weekEndIndex',
-                        e.target.value === '' ? undefined : Number(e.target.value)
-                      )
-                    }
-                  >
-                    <option value="">— Non défini —</option>
-                    {(weeks || []).map((w, i) => (
-                      <option key={i} value={i}>
-                        {w.label}
-                      </option>
-                    ))}
-                  </select>
+                <div className="text-xs text-gray-600 truncate">
+                  Code: <span className="font-mono">{m.code || '—'}</span> • Classe: {(m.classe || '').toString().toUpperCase()} • Séances: {m.volumeSeances ?? 0} × {m.dureeSeanceH ?? 1}h
+                </div>
+                <div className="text-[11px] text-gray-500">
+                  Fenêtre: {weekLabel(m.classe, m.weekStartIndex)} → {weekLabel(m.classe, m.weekEndIndex)}
                 </div>
               </div>
-              {Number.isInteger(m.weekStartIndex) &&
-                Number.isInteger(m.weekEndIndex) &&
-                m.weekEndIndex < m.weekStartIndex && (
-                  <div className="text-[11px] text-red-600 mt-1">
-                    La semaine de fin est avant la semaine de début. La génération utilisera l’intervalle trié.
-                  </div>
-                )}
-              <div className="text-[11px] text-gray-500 mt-1">
-                Si non défini, le placement commencera le plus tôt possible et/ou s’étendra jusqu’à la fin de l’année.
-              </div>
-            </div>
-          </div>
-          {/* Compétences liées */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
-            <div className="md:col-span-12">
-              <label className="label">Compétences associées</label>
-              <div className="flex flex-wrap gap-2">
-                {(m.competences || []).length === 0 && (
-                  <span className="text-xs text-gray-500">Aucune compétence. Cliquez sur “Ajouter des compétences”.</span>
-                )}
-                {(m.competences || []).map((code) => (
-                  <span
-                    key={code}
-                    className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border"
-                    title={COMPETENCE_LABELS[code] || 'Compétence'}
-                  >
-                    {code}
-                  </span>
-                ))}
-              </div>
-              <div className="mt-2">
-                <button type="button" className="btn" onClick={() => setModalIdx(idx)}>
-                  Ajouter / Modifier les compétences
+              <div className="flex items-center gap-2 shrink-0">
+                <button className="btn p-2" title="Modifier" aria-label="Modifier" onClick={() => openEdit(idx)}>
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button className="btn p-2" title="Supprimer" aria-label="Supprimer" onClick={() => remove(idx)}>
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
-              {/* Tâches associées (déduites des compétences) */}
-              <div className="mt-3">
-                <div className="text-xs text-gray-600 mb-1">Tâches associées (déduites des compétences sélectionnées)</div>
-                <div className="flex flex-wrap gap-2">
-                  {(m.taches || []).length === 0 && (
-                    <span className="text-xs text-gray-500">Aucune tâche associée pour l’instant.</span>
-                  )}
-                  {(m.taches || []).map((tCode) => (
-                    <span
-                      key={tCode}
-                      className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-900 border border-blue-200"
-                      title={TASK_LABELS[tCode] || 'Tâche'}
-                    >
-                      {tCode}
-                    </span>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
-          {/* Modale compétences */}
-          {modalIdx === idx && (
-            <CompetencesModal
-              open
-              selectedCodes={m.competences || []}
-              onClose={() => setModalIdx(null)}
-              onSave={(codes) => {
-                // Recalculer les tâches uniquement à partir des compétences sélectionnées
-                const tasksSet = new Set();
-                codes.forEach((c) => {
-                  (COMPETENCE_TO_TASKS[c] || []).forEach((t) => tasksSet.add(t));
-                });
-                const tasks = Array.from(tasksSet).sort((a, b) => a.localeCompare(b, 'fr'));
-                // Appliquer compétences et tâches en une seule mise à jour
-                updateMany(idx, { competences: codes, taches: tasks });
-                setModalIdx(null);
-              }}
-            />
-          )}
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-gray-500">
-              ID: <span className="font-mono">{m.id}</span>{' '}
-              <Badge colorClass={CATEGORY_COLORS[m.type] || CATEGORY_COLORS.cours}>
-                {(m.type || '').toString().toUpperCase()}
-              </Badge>
-            </div>
-            <button type="button" className="btn" onClick={() => remove(idx)}>
-              Supprimer
-            </button>
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
+
+      <SubjectModal
+        open={isModalOpen}
+        initial={draft}
+        onClose={() => setIsModalOpen(false)}
+        onSave={saveDraft}
+        selectedTeacherId={editingTeacherId}
+        teachers={teachers}
+        weeks1={weeks1}
+        weeks2={weeks2}
+      />
     </div>
   );
 };
@@ -834,18 +1051,26 @@ const colorFromId = (id) => {
 const PlanFormationCreate = () => {
   const [tab, setTab] = useState('generer'); // 'calendrier' | 'matieres' | 'profs' | 'templates' | 'generer' | 'plan' | 'taches'
   const [data, setData] = useState(DEFAULT_DATA);
-  const [generated, setGenerated] = useState({ sessionsBySubject: {}, sessionsByProf: {} });
+  const [generatedY1, setGeneratedY1] = useState({ sessionsBySubject: {}, sessionsByProf: {} });
+  const [generatedY2, setGeneratedY2] = useState({ sessionsBySubject: {}, sessionsByProf: {} });
   const [selectedProf, setSelectedProf] = useState(null);
   const [teachers, setTeachers] = useState([]);
   const [loadingTeachers, setLoadingTeachers] = useState(true);
   const [teacherColors, setTeacherColors] = useState({});
+  const [showCal1, setShowCal1] = useState(false);
+  const [showCal2, setShowCal2] = useState(false);
 
   // Weeks & bands computed
-  const weeks = useMemo(
+  const weeks1 = useMemo(
     () => generateWeeks(data.calendrier.dateDebut, data.calendrier.dateFin),
     [data.calendrier.dateDebut, data.calendrier.dateFin]
   );
-  const bands = useMemo(() => buildBlockedBands(weeks, data.calendrier), [weeks, data.calendrier]);
+  const bands1 = useMemo(() => buildBlockedBands(weeks1, data.calendrier), [weeks1, data.calendrier]);
+  const weeks2 = useMemo(
+    () => generateWeeks(data.calendrier2.dateDebut, data.calendrier2.dateFin),
+    [data.calendrier2.dateDebut, data.calendrier2.dateFin]
+  );
+  const bands2 = useMemo(() => buildBlockedBands(weeks2, data.calendrier2), [weeks2, data.calendrier2]);
 
   useEffect(() => {
     // Load teachers from API
@@ -869,15 +1094,37 @@ const PlanFormationCreate = () => {
     if (!selectedProf && teachers.length > 0) setSelectedProf(teachers[0].id);
   }, [teachers, selectedProf]);
 
+  const belongsToClasse = (m, classe) => {
+    const c = String(m.classe || '').toUpperCase();
+    if (c === classe.toUpperCase()) return true;
+    if (c.includes('+')) return c.split('+').map((s) => s.trim().toUpperCase()).includes(classe.toUpperCase());
+    return false;
+  };
+  const filterDataByClasse = (d, classe) => ({
+    ...d,
+    matieres: (d.matieres || []).filter((m) => belongsToClasse(m, classe)),
+  });
   const handleGenerate = () => {
-    const res = autoGeneratePlan(weeks, bands, data, teachers);
-    setGenerated(res);
+    const res1 = autoGeneratePlan(weeks1, bands1, filterDataByClasse(data, 'BTS1'), teachers);
+    const res2 = autoGeneratePlan(weeks2, bands2, filterDataByClasse(data, 'BTS2'), teachers);
+    setGeneratedY1(res1);
+    setGeneratedY2(res2);
     setTab('plan');
   };
 
   const exportPrint = () => {
     window.print();
   };
+
+  // Génération automatique quand l'onglet "plan" est affiché ou que les données changent
+  useEffect(() => {
+    if (tab !== 'plan') return;
+    const res1 = autoGeneratePlan(weeks1, bands1, filterDataByClasse(data, 'BTS1'), teachers);
+    const res2 = autoGeneratePlan(weeks2, bands2, filterDataByClasse(data, 'BTS2'), teachers);
+    setGeneratedY1(res1);
+    setGeneratedY2(res2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, data, weeks1, bands1, weeks2, bands2, teachers]);
 
   return (
     <div className="space-y-6">
@@ -903,86 +1150,17 @@ const PlanFormationCreate = () => {
 
       {tab === 'generer' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Calendrier */}
+          {/* Boutons pour ouvrir les calendriers en modal */}
           <div className="card">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Calendrier</h2>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Année scolaire</label>
-                  <input
-                    className="input"
-                    value={data.calendrier.annee}
-                    onChange={(e) =>
-                      setData((d) => ({ ...d, calendrier: { ...d.calendrier, annee: e.target.value } }))
-                    }
-                  />
-                </div>
-                <div />
-                <div>
-                  <label className="label">Début</label>
-                  <input
-                    type="date"
-                    className="input"
-                    value={data.calendrier.dateDebut}
-                    onChange={(e) =>
-                      setData((d) => ({ ...d, calendrier: { ...d.calendrier, dateDebut: e.target.value } }))
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="label">Fin</label>
-                  <input
-                    type="date"
-                    className="input"
-                    value={data.calendrier.dateFin}
-                    onChange={(e) =>
-                      setData((d) => ({ ...d, calendrier: { ...d.calendrier, dateFin: e.target.value } }))
-                    }
-                  />
-                </div>
-              </div>
-
-              {/* Éditeurs de périodes */}
-              <div className="mt-4">
-                <div className="text-sm font-medium text-gray-700">Périodes</div>
-                <div className="text-xs text-gray-500 mb-2">
-                  Ajoutez, modifiez ou supprimez les périodes qui bloquent l&apos;emploi du temps.
-                </div>
-                <PeriodEditor
-                  title="Vacances"
-                  type="vacance"
-                  items={data.calendrier.vacances}
-                  onChange={(items) =>
-                    setData((d) => ({ ...d, calendrier: { ...d.calendrier, vacances: items } }))
-                  }
-                />
-                <PeriodEditor
-                  title="Jours fériés"
-                  type="feries"
-                  items={data.calendrier.feries}
-                  onChange={(items) =>
-                    setData((d) => ({ ...d, calendrier: { ...d.calendrier, feries: items } }))
-                  }
-                />
-                <PeriodEditor
-                  title="Périodes de stage"
-                  type="stage"
-                  showClasses
-                  items={data.calendrier.stages}
-                  onChange={(items) =>
-                    setData((d) => ({ ...d, calendrier: { ...d.calendrier, stages: items } }))
-                  }
-                />
-                <PeriodEditor
-                  title="Examens"
-                  type="examens"
-                  items={data.calendrier.examens}
-                  onChange={(items) =>
-                    setData((d) => ({ ...d, calendrier: { ...d.calendrier, examens: items } }))
-                  }
-                />
-              </div>
+            <h2 className="text-lg font-medium text-gray-900 mb-2">Calendriers</h2>
+            <div className="text-xs text-gray-500 mb-3">Configurez séparément chaque année sans surcharger la page.</div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn btn-primary" onClick={() => setShowCal1(true)}>
+                Ouvrir le calendrier — Année 1 (BTS1) • {data.calendrier.annee}
+              </button>
+              <button type="button" className="btn" onClick={() => setShowCal2(true)}>
+                Ouvrir le calendrier — Année 2 (BTS2) • {data.calendrier2.annee}
+              </button>
             </div>
           </div>
 
@@ -991,7 +1169,11 @@ const PlanFormationCreate = () => {
             <h2 className="text-lg font-medium text-gray-900 mb-4">Matières / Modules</h2>
             <SubjectEditor
               items={data.matieres}
-              weeks={weeks}
+              weeks1={weeks1}
+              weeks2={weeks2}
+              teachers={teachers}
+              affectations={data.affectations || {}}
+              onChangeAffectations={(aff) => setData((d) => ({ ...d, affectations: aff }))}
               onChange={(items) => setData((d) => ({ ...d, matieres: items }))}
             />
           </div>
@@ -1056,98 +1238,253 @@ const PlanFormationCreate = () => {
         </div>
       )}
 
+      {/* Modales de calendrier */}
+      <CalendarModal
+        open={showCal1}
+        title={`Calendrier — Année 1 (BTS1)`}
+        calendrier={data.calendrier}
+        onChangeCalendrier={(cal) => setData((d) => ({ ...d, calendrier: cal }))}
+        onClose={() => setShowCal1(false)}
+      />
+      <CalendarModal
+        open={showCal2}
+        title={`Calendrier — Année 2 (BTS2)`}
+        calendrier={data.calendrier2}
+        onChangeCalendrier={(cal) => setData((d) => ({ ...d, calendrier2: cal }))}
+        onClose={() => setShowCal2(false)}
+      />
+
       {tab === 'plan' && (
-        <div className="card overflow-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-gray-900">Plan annuel — {data.calendrier.annee}</h2>
-            <div className="text-xs text-gray-600 flex gap-2 items-center">
-              <Badge colorClass={CATEGORY_COLORS.cours}>Cours</Badge>
-              <Badge colorClass={CATEGORY_COLORS.tp}>TP</Badge>
-              <Badge colorClass={CATEGORY_COLORS.projet}>Projet/SAÉ</Badge>
-              <Badge colorClass={CATEGORY_COLORS.evaluation}>Évaluation</Badge>
-              <Badge colorClass={CATEGORY_COLORS.vacance}>Vacances</Badge>
-              <Badge colorClass={CATEGORY_COLORS.stage}>Stage</Badge>
-              <Badge colorClass={CATEGORY_COLORS.examens}>Examens</Badge>
+        <>
+          {/* Année 1 */}
+          <div className="card overflow-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Plan — {data.calendrier.annee} (BTS1)</h2>
+              <div className="text-xs text-gray-600 flex gap-2 items-center">
+                <Badge colorClass={CATEGORY_COLORS.cours}>Cours</Badge>
+                <Badge colorClass={CATEGORY_COLORS.tp}>TP</Badge>
+                <Badge colorClass={CATEGORY_COLORS.projet}>Projet/SAÉ</Badge>
+                <Badge colorClass={CATEGORY_COLORS.evaluation}>Évaluation</Badge>
+                <Badge colorClass={CATEGORY_COLORS.vacance}>Vacances</Badge>
+                <Badge colorClass={CATEGORY_COLORS.stage}>Stage</Badge>
+                <Badge colorClass={CATEGORY_COLORS.examens}>Examens</Badge>
+              </div>
             </div>
-          </div>
-          <div className="min-w-[900px]">
-            <table className="min-w-full border border-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="sticky left-0 bg-gray-50 z-20 border-b border-r px-2 py-2 text-left text-xs font-semibold text-gray-700 w-48">
-                    Matières
-                  </th>
-                  {weeks.map((w) => (
-                    <th key={w.index} className="border-b px-2 py-2 text-center text-[11px] font-semibold text-gray-700">
-                      {w.label}
+            <div className="min-w-[900px]">
+              <table className="min-w-full border border-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="sticky left-0 bg-gray-50 z-20 border-b border-r px-2 py-2 text-left text-xs font-semibold text-gray-700 w-48">
+                      Matières
                     </th>
-                  ))}
-                </tr>
-                {/* Bandes bloquantes */}
-                <tr>
-                  <th className="sticky left-0 bg-white z-10 border-b border-r px-2 py-1 text-left text-xs font-medium text-gray-700">
-                    Bandeaux
-                  </th>
-                  {weeks.map((_, idx) => {
-                    const types = bands[idx]?.types || [];
-                    if (types.length === 0) {
-                      return <th key={idx} className="border-b px-1 py-1"></th>;
-                    }
-                    const label = types.map(t => t.label).join(' • ');
-                    const mainType = types[0]?.type || 'vacance';
-                    const color = CATEGORY_COLORS[mainType] || CATEGORY_COLORS.vacance;
-                    return (
-                      <th key={idx} className={`border-b px-1 py-1 ${color}`} title={label}>
-                        <span className="text-[10px] font-medium">{types.map(t => t.label).join(' / ')}</span>
+                    {weeks1.map((w) => (
+                      <th key={w.index} className="border-b px-2 py-2 text-center text-[11px] font-semibold text-gray-700">
+                        {w.label}
                       </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {data.matieres.map((m) => (
-                  <tr key={m.id} className="bg-white">
-                    <td className="sticky left-0 bg-white z-10 border-r px-2 py-2 text-sm font-medium text-gray-900 w-48">
-                      <div className="flex items-center gap-2">
-                        <Badge colorClass={CATEGORY_COLORS[m.type] || CATEGORY_COLORS.cours}>{m.type.toUpperCase()}</Badge>
-                        <div className="truncate">
-                          <div className="truncate">{m.nom}</div>
-                          <div className="text-xs text-gray-500">{m.code} • {m.classe.toUpperCase()}</div>
-                        </div>
-                      </div>
-                    </td>
-                    {weeks.map((_, idx) => {
-                      const list = generated.sessionsBySubject?.[m.id]?.[idx] || [];
+                    ))}
+                  </tr>
+                  {/* Bandes bloquantes */}
+                  <tr>
+                    <th className="sticky left-0 bg-white z-10 border-b border-r px-2 py-1 text-left text-xs font-medium text-gray-700">
+                      Bandeaux
+                    </th>
+                    {weeks1.map((_, idx) => {
+                      const types = bands1[idx]?.types || [];
+                      if (types.length === 0) {
+                        return <th key={idx} className="border-b px-1 py-1"></th>;
+                      }
+                      const label = types.map(t => t.label).join(' • ');
+                      const mainType = types[0]?.type || 'vacance';
+                      const color = CATEGORY_COLORS[mainType] || CATEGORY_COLORS.vacance;
                       return (
-                        <td key={idx} className="border-t border-gray-200 align-top px-1 py-1 min-w-[110px]">
-                          <div className="flex flex-col gap-1">
-                            {list.map((s, i) => (
-                              <div key={i} className={`rounded px-2 py-1 text-[11px] ${s.colorClass}`}>
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="truncate">{s.label}</span>
-                                  {s.prof && (
-                                    <span
-                                      className="ml-1 inline-flex items-center justify-center rounded-full text-[9px] font-bold px-1.5 py-0.5"
-                                      style={{ background: s.prof.couleur, color: 'white' }}
-                                      title={s.prof.nom}
-                                    >
-                                      {s.prof.initiales}
-                                    </span>
-                                  )}
-                                </div>
-                                {s.livrable && <div className="text-[10px] opacity-80">{s.livrable}</div>}
-                              </div>
-                            ))}
-                          </div>
-                        </td>
+                        <th key={idx} className={`border-b px-1 py-1 ${color}`} title={label}>
+                          <span className="text-[10px] font-medium">{types.map(t => t.label).join(' / ')}</span>
+                        </th>
                       );
                     })}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.matieres.filter(m => belongsToClasse(m, 'BTS1')).map((m) => (
+                    <tr key={m.id} className="bg-white">
+                      <td className="sticky left-0 bg-white z-10 border-r px-2 py-2 text-sm font-medium text-gray-900 w-48">
+                        <div className="flex items-center gap-2">
+                          <Badge colorClass={CATEGORY_COLORS[m.type] || CATEGORY_COLORS.cours}>{m.type.toUpperCase()}</Badge>
+                          <div className="truncate">
+                            <div className="truncate">{m.nom}</div>
+                            <div className="text-xs text-gray-500">{m.code} • {m.classe.toUpperCase()}</div>
+                          </div>
+                        </div>
+                      </td>
+                      {weeks1.map((_, idx) => {
+                        const list = generatedY1.sessionsBySubject?.[m.id]?.[idx] || [];
+                        return (
+                          <td key={idx} className="border-t border-gray-200 align-top px-1 py-1 min-w-[110px]">
+                            <div className="flex flex-col gap-1">
+                              {list.map((s, i) => (
+                                <div key={i} className={`rounded px-2 py-1 text-[11px] ${s.colorClass}`}>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="truncate">{s.label}</span>
+                                    {s.prof && (
+                                      <span
+                                        className="ml-1 inline-flex items-center justify-center rounded-full text-[9px] font-bold px-1.5 py-0.5"
+                                        style={{ background: s.prof.couleur, color: 'white' }}
+                                        title={s.prof.nom}
+                                      >
+                                        {s.prof.initiales}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {s.livrable && <div className="text-[10px] opacity-80">{s.livrable}</div>}
+                                  {(Array.isArray(s.competences) && s.competences.length > 0) && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {s.competences.map((c) => (
+                                        <span
+                                          key={c}
+                                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-gray-100 text-gray-800 border"
+                                          title={COMPETENCE_LABELS[c] || 'Compétence'}
+                                        >
+                                          {c}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {(Array.isArray(s.taches) && s.taches.length > 0) && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {s.taches.map((t) => (
+                                        <span
+                                          key={t}
+                                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-50 text-blue-900 border border-blue-200"
+                                          title={TASK_LABELS[t] || 'Tâche'}
+                                        >
+                                          {t}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {/* Année 2 */}
+          <div className="card overflow-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Plan — {data.calendrier2.annee} (BTS2)</h2>
+            </div>
+            <div className="min-w-[900px]">
+              <table className="min-w-full border border-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="sticky left-0 bg-gray-50 z-20 border-b border-r px-2 py-2 text-left text-xs font-semibold text-gray-700 w-48">
+                      Matières
+                    </th>
+                    {weeks2.map((w) => (
+                      <th key={w.index} className="border-b px-2 py-2 text-center text-[11px] font-semibold text-gray-700">
+                        {w.label}
+                      </th>
+                    ))}
+                  </tr>
+                  {/* Bandes bloquantes */}
+                  <tr>
+                    <th className="sticky left-0 bg-white z-10 border-b border-r px-2 py-1 text-left text-xs font-medium text-gray-700">
+                      Bandeaux
+                    </th>
+                    {weeks2.map((_, idx) => {
+                      const types = bands2[idx]?.types || [];
+                      if (types.length === 0) {
+                        return <th key={idx} className="border-b px-1 py-1"></th>;
+                      }
+                      const label = types.map(t => t.label).join(' • ');
+                      const mainType = types[0]?.type || 'vacance';
+                      const color = CATEGORY_COLORS[mainType] || CATEGORY_COLORS.vacance;
+                      return (
+                        <th key={idx} className={`border-b px-1 py-1 ${color}`} title={label}>
+                          <span className="text-[10px] font-medium">{types.map(t => t.label).join(' / ')}</span>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.matieres.filter(m => belongsToClasse(m, 'BTS2')).map((m) => (
+                    <tr key={m.id} className="bg-white">
+                      <td className="sticky left-0 bg-white z-10 border-r px-2 py-2 text-sm font-medium text-gray-900 w-48">
+                        <div className="flex items-center gap-2">
+                          <Badge colorClass={CATEGORY_COLORS[m.type] || CATEGORY_COLORS.cours}>{m.type.toUpperCase()}</Badge>
+                          <div className="truncate">
+                            <div className="truncate">{m.nom}</div>
+                            <div className="text-xs text-gray-500">{m.code} • {m.classe.toUpperCase()}</div>
+                          </div>
+                        </div>
+                      </td>
+                      {weeks2.map((_, idx) => {
+                        const list = generatedY2.sessionsBySubject?.[m.id]?.[idx] || [];
+                        return (
+                          <td key={idx} className="border-t border-gray-200 align-top px-1 py-1 min-w-[110px]">
+                            <div className="flex flex-col gap-1">
+                              {list.map((s, i) => (
+                                <div key={i} className={`rounded px-2 py-1 text-[11px] ${s.colorClass}`}>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="truncate">{s.label}</span>
+                                    {s.prof && (
+                                      <span
+                                        className="ml-1 inline-flex items-center justify-center rounded-full text-[9px] font-bold px-1.5 py-0.5"
+                                        style={{ background: s.prof.couleur, color: 'white' }}
+                                        title={s.prof.nom}
+                                      >
+                                        {s.prof.initiales}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {s.livrable && <div className="text-[10px] opacity-80">{s.livrable}</div>}
+                                  {(Array.isArray(s.competences) && s.competences.length > 0) && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {s.competences.map((c) => (
+                                        <span
+                                          key={c}
+                                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-gray-100 text-gray-800 border"
+                                          title={COMPETENCE_LABELS[c] || 'Compétence'}
+                                        >
+                                          {c}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {(Array.isArray(s.taches) && s.taches.length > 0) && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {s.taches.map((t) => (
+                                        <span
+                                          key={t}
+                                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-50 text-blue-900 border border-blue-200"
+                                          title={TASK_LABELS[t] || 'Tâche'}
+                                        >
+                                          {t}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       {tab === 'taches' && (
@@ -1172,18 +1509,20 @@ const PlanFormationCreate = () => {
           </div>
 
           <div className="space-y-3">
-            {selectedProf && (generated.sessionsByProf[String(selectedProf)] || [])
-              .sort((a, b) => a.weekIndex - b.weekIndex)
-              .map((t, i) => (
-                <div key={i} className="flex items-center justify-between p-2 border rounded">
-                  <div className="flex items-center gap-3">
-                    <Badge colorClass={t.colorClass}>{t.type.toUpperCase()}</Badge>
-                    <div className="text-sm font-medium text-gray-900">{t.label}</div>
+            {selectedProf && (
+              [...(generatedY1.sessionsByProf[String(selectedProf)] || []), ...(generatedY2.sessionsByProf[String(selectedProf)] || [])]
+                .sort((a, b) => a.weekIndex - b.weekIndex)
+                .map((t, i) => (
+                  <div key={i} className="flex items-center justify-between p-2 border rounded">
+                    <div className="flex items-center gap-3">
+                      <Badge colorClass={t.colorClass}>{t.type.toUpperCase()}</Badge>
+                      <div className="text-sm font-medium text-gray-900">{t.label}</div>
+                    </div>
+                    <div className="text-xs text-gray-600">{t.weekLabel}</div>
                   </div>
-                  <div className="text-xs text-gray-600">{t.weekLabel}</div>
-                </div>
-              ))}
-            {selectedProf && (!generated.sessionsByProf[String(selectedProf)] || generated.sessionsByProf[String(selectedProf)].length === 0) && (
+                ))
+            )}
+            {selectedProf && (!generatedY1.sessionsByProf[String(selectedProf)] && !generatedY2.sessionsByProf[String(selectedProf)]) && (
               <div className="text-sm text-gray-500">Aucune tâche générée pour ce professeur. Lancez la génération.</div>
             )}
           </div>

@@ -101,3 +101,8 @@
   border-color: rgb(59, 130, 246) !important;
   box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.3);
 } 
+
+/* Affichage des listes dans l'éditeur riche */
+.richtext ul { list-style: disc !important; list-style-position: inside !important; padding-left: 0 !important; }
+.richtext ol { list-style: decimal !important; list-style-position: inside !important; padding-left: 0 !important; }
+.richtext li { display: list-item !important; }

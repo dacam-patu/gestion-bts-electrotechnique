@@ -50,6 +50,86 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   const [excludedAutoCriteria, setExcludedAutoCriteria] = useState([]);
   const [customCriterion, setCustomCriterion] = useState('');
 
+  // Éditeur riche minimal pour les rubriques (bold, listes, justification, taille)
+  const RichTextEditor = ({ value, onChange, placeholder }) => {
+    const editorRef = useRef(null);
+    const savedRangeRef = useRef(null);
+    const saveSelection = () => {
+      const sel = window.getSelection && window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        savedRangeRef.current = sel.getRangeAt(0);
+      }
+    };
+    const restoreSelection = () => {
+      const sel = window.getSelection && window.getSelection();
+      if (sel && savedRangeRef.current) {
+        sel.removeAllRanges();
+        sel.addRange(savedRangeRef.current);
+      }
+    };
+    useEffect(() => {
+      if (editorRef.current && (value || '') !== editorRef.current.innerHTML) {
+        editorRef.current.innerHTML = value || '';
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [value]);
+    const exec = (cmd, arg = null) => {
+      // S'assurer que la sélection est dans l'éditeur
+      if (editorRef.current) {
+        editorRef.current.focus();
+        restoreSelection();
+      }
+      document.execCommand(cmd, false, arg);
+      if (editorRef.current) onChange(editorRef.current.innerHTML);
+      saveSelection();
+    };
+    const onInput = () => {
+      if (editorRef.current) onChange(editorRef.current.innerHTML);
+      saveSelection();
+    };
+    return (
+      <div className="border-2 border-gray-300 rounded-lg overflow-visible">
+        <div className="flex flex-wrap gap-1 p-2 bg-gray-50 border-b">
+          <button type="button" className="btn text-xs px-2 py-1" title="Gras" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('bold')}><strong>B</strong></button>
+          <button type="button" className="btn text-xs px-2 py-1" title="Italique" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('italic')}><em>I</em></button>
+          <button type="button" className="btn text-xs px-2 py-1" title="Souligner" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('underline')}><span style={{ textDecoration: 'underline' }}>U</span></button>
+          <span className="mx-1 w-px h-5 bg-gray-300" />
+          <button type="button" className="btn text-xs px-2 py-1" title="Puces" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('insertUnorderedList')}>•</button>
+          <button type="button" className="btn text-xs px-2 py-1" title="Numérotation" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('insertOrderedList')}>1.</button>
+          <span className="mx-1 w-px h-5 bg-gray-300" />
+          <button type="button" className="btn text-xs px-2 py-1" title="Aligner à gauche" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('justifyLeft')}>⟸</button>
+          <button type="button" className="btn text-xs px-2 py-1" title="Centrer" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('justifyCenter')}>⋯</button>
+          <button type="button" className="btn text-xs px-2 py-1" title="Aligner à droite" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('justifyRight')}>⟹</button>
+          <button type="button" className="btn text-xs px-2 py-1" title="Justifier" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('justifyFull')}>≋</button>
+          <span className="mx-1 w-px h-5 bg-gray-300" />
+          <select
+            className="input text-xs px-2 py-1"
+            onMouseDown={(e)=>e.preventDefault()}
+            onChange={(e) => exec('fontSize', e.target.value)}
+            defaultValue="3"
+            title="Taille"
+          >
+            <option value="2">Petit</option>
+            <option value="3">Normal</option>
+            <option value="4">Grand</option>
+            <option value="5">Très grand</option>
+          </select>
+        </div>
+        <div
+          ref={editorRef}
+          className="p-3 min-h-[120px] bg-white richtext"
+          contentEditable
+          onInput={onInput}
+          onMouseUp={saveSelection}
+          onKeyUp={saveSelection}
+          onBlur={saveSelection}
+          data-placeholder={placeholder}
+          style={{ outline: 'none' }}
+        />
+      </div>
+    );
+  };
+
   // Référentiel - Liste des tâches (mêmes libellés que Référentiel > Liste des tâches)
   const ALL_TASKS = [
     'T 1.1 : analyser et/ou élaborer les documents relatifs aux besoins du client/utilisateur',
@@ -274,6 +354,13 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
     setShowEquipmentModal(false);
   };
 
+  const handleRemoveEquipment = (equipment) => {
+    // Retirer un équipement depuis la vue principale
+    const next = (selectedEquipment || []).filter((e) => e !== equipment);
+    setSelectedEquipment(next);
+    setContent((prev) => ({ ...prev, equipment: next.join('\n') }));
+  };
+
   // Fonctions pour les documents
   const handleDocumentToggle = (document) => {
     setSelectedDocuments(prev => 
@@ -379,7 +466,8 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
 
   const handleSave = () => {
     if (editingSheet) {
-      onSave({ ...content, sheetName: sheetName || editingSheet.title });
+      // En édition, ne pas écraser le titre avec sheetName (utilisé seulement à la création)
+      onSave({ ...content });
       onClose();
     } else {
       setShowNameModal(true);
@@ -424,6 +512,20 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
     const logoUrl = `${window.location.protocol}//${window.location.host}/logo patu.png`;
     console.log('🖨️ URL du logo:', logoUrl);
     
+    // Préparer HTML des critères d'évaluation en liste à puces (si pas déjà une liste)
+    const evaluationRaw = (content.evaluation || '').toString();
+    const hasListAlready = /<(ul|ol)\b/i.test(evaluationRaw);
+    const evaluationHtmlPrint = (() => {
+      if (hasListAlready) return evaluationRaw;
+      const plain = evaluationRaw
+        .replace(/<\/p>\s*<p>/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/?p>/gi, '');
+      const lines = plain.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+      if (!lines.length) return '';
+      return `<ul>${lines.map((l) => `<li>${l}</li>`).join('')}</ul>`;
+    })();
+    
     // Créer un div caché pour l'impression (pas d'iframe = pas de about:blank)
     const printDiv = document.createElement('div');
     printDiv.id = 'print-content-hidden';
@@ -432,7 +534,8 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
     printDiv.style.top = '0';
     
     printDiv.innerHTML = `
-      <div style="width: 210mm; padding: 10mm; font-family: 'Times New Roman', serif; font-size: 12px; background: white;">
+      <div id="print-scale-wrapper">
+      <div style="width: 100%; padding: 10mm; font-family: 'Times New Roman', serif; font-size: 12px; background: white;">
         <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px;">
           <div style="display: flex; align-items: center;">
             <div style="height: 40px; margin-right: 15px; display: flex; align-items: center;">
@@ -477,61 +580,61 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
         ${content.context ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">1. Contexte et Situation</div>
-          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.context}</div>
+          <div style="font-size: 33px; line-height: 1.6; white-space: pre-wrap;">${content.context}</div>
             </div>
         ` : ''}
         
         ${content.objectives ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">2. Objectifs Pédagogiques</div>
-          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.objectives}</div>
+          <div style="font-size: 33px; line-height: 1.6; white-space: pre-wrap;">${content.objectives}</div>
             </div>
         ` : ''}
         
         ${content.documents ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">3. Documents et Ressources Fournis</div>
-          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.documents}</div>
+          <div style="font-size: 33px; line-height: 1.6; white-space: pre-wrap;">${content.documents}</div>
             </div>
             ` : ''}
 
         ${content.equipment ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">4. Matériel et Équipements</div>
-          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.equipment}</div>
+          <div style="font-size: 33px; line-height: 1.6; white-space: pre-wrap;">${content.equipment}</div>
             </div>
         ` : ''}
         
         ${content.tasks ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">5. Tâches à Réaliser</div>
-          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.tasks}</div>
+          <div style="font-size: 33px; line-height: 1.6; white-space: pre-wrap;">${content.tasks}</div>
             </div>
         ` : ''}
         
         ${content.competencies ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">6. Compétences Évaluées</div>
-          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.competencies}</div>
+          <div style="font-size: 33px; line-height: 1.6; white-space: pre-wrap;">${content.competencies}</div>
             </div>
         ` : ''}
         
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">7. Travail Demandé</div>
-          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${(content.workRequired || '').trim()}</div>
+          <div style="font-size: 12px; line-height: 1.6; white-space: normal;">${(content.workRequired || '').trim()}</div>
         </div>
         
-        ${content.evaluation ? `
+        ${evaluationHtmlPrint ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">8. Critères d'Évaluation</div>
-          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.evaluation}</div>
+          <div style="font-size: 33px; line-height: 1.6; white-space: normal;">${evaluationHtmlPrint}</div>
             </div>
         ` : ''}
         
         ${content.safety ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">9. Consignes de Sécurité</div>
-          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.safety}</div>
+          <div style="font-size: 12px; line-height: 1.6; white-space: normal;">${content.safety}</div>
             </div>
         ` : ''}
             </div>
@@ -556,6 +659,15 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
           left: 0 !important;
           top: 0 !important;
           width: 100% !important;
+        }
+        #print-content-hidden ul { list-style: disc !important; list-style-position: inside !important; padding-left: 18px !important; margin: 0 !important; }
+        #print-content-hidden ol { list-style: decimal !important; list-style-position: inside !important; padding-left: 18px !important; margin: 0 !important; }
+        #print-content-hidden li { display: list-item !important; }
+        /* Mise à l'échelle globale à 175% (Chrome/Edge) */
+        #print-scale-wrapper {
+          transform: scale(1.75);
+          transform-origin: top left;
+          width: calc(210mm / 1.75);
         }
         @page {
           size: A4 portrait;
@@ -809,12 +921,22 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
                     {selectedEquipment.length > 0 ? (
                     <div className="space-y-2">
                       {selectedEquipment.map((equip, index) => (
-                        <div key={index} className="flex items-center text-sm text-gray-700 bg-pink-100 px-3 py-2 rounded">
-                          <Wrench className="h-4 w-4 mr-2 text-pink-600" />
-                          {equip}
+                        <div key={index} className="flex items-center justify-between text-sm text-gray-700 bg-pink-100 px-3 py-2 rounded">
+                          <div className="flex items-center">
+                            <Wrench className="h-4 w-4 mr-2 text-pink-600" />
+                            {equip}
                           </div>
-                        ))}
-                      </div>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleRemoveEquipment(equip); }}
+                            className="ml-3 text-pink-700 hover:text-pink-900 text-xs font-semibold"
+                            title="Supprimer cet équipement"
+                          >
+                            Retirer
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                     ) : (
                     <div className="text-center text-gray-400 py-8">
                       <Wrench className="h-12 w-12 mx-auto mb-2 text-pink-300" />
@@ -886,12 +1008,10 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
                   <span className="bg-yellow-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3">8</span>
                   Travail Demandé
                 </h4>
-                  <textarea
+                <RichTextEditor
                   value={content.workRequired}
-                  onChange={(e) => setContent({...content, workRequired: e.target.value})}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-yellow-500 focus:ring focus:ring-yellow-200 transition-all"
-                  rows={5}
-                    placeholder="Décrivez le travail demandé..."
+                  onChange={(html) => setContent({ ...content, workRequired: html })}
+                  placeholder="Décrivez le travail demandé… (gras, listes, justification, taille)"
                 />
               </div>
 
@@ -950,13 +1070,11 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
                   <span className="bg-rose-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3">10</span>
                   Consignes de Sécurité
                 </h4>
-                  <textarea
+                <RichTextEditor
                   value={content.safety}
-                  onChange={(e) => setContent({...content, safety: e.target.value})}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-rose-500 focus:ring focus:ring-rose-200 transition-all"
-                  rows={3}
-                  placeholder="Décrivez les consignes de sécurité..."
-                  />
+                  onChange={(html) => setContent({ ...content, safety: html })}
+                  placeholder="Décrivez les consignes de sécurité… (gras, listes, justification, taille)"
+                />
                 </div>
                 </div>
               </div>
