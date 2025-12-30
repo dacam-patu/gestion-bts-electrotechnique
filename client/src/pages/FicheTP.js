@@ -403,7 +403,7 @@ const FicheTP = () => {
             <!-- Section 7: Travail demandé -->
             <div class="section">
               <div class="section-header">7. Travail demandé</div>
-              <div class="section-content">${sheet.workRequired || ''}</div>
+              <div class="section-content">${sheet.work_required || sheet.workRequired || ''}</div>
             </div>
 
             <!-- Section 8: Évaluation -->
@@ -702,30 +702,7 @@ const FicheTP = () => {
           </div>
         </div>
 
-        {/* Guide rapide */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-medium text-blue-900 mb-3 flex items-center">
-            💡 Guide rapide d'utilisation
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
-            <div className="flex items-start space-x-2">
-              <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
-              <p>Cliquez sur <strong>"Nouvelle fiche TP"</strong> pour créer une nouvelle fiche</p>
-            </div>
-            <div className="flex items-start space-x-2">
-              <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
-              <p><strong>Double-cliquez</strong> sur le titre d'une fiche pour la renommer rapidement</p>
-            </div>
-            <div className="flex items-start space-x-2">
-              <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
-              <p>Utilisez le bouton <strong>Imprimer</strong> 🖨️ pour générer un PDF professionnel</p>
-            </div>
-            <div className="flex items-start space-x-2">
-              <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0">4</span>
-              <p>Sélectionnez les <strong>compétences</strong>, <strong>tâches</strong> et <strong>équipements</strong> prédéfinis</p>
-            </div>
-          </div>
-        </div>
+        
 
         {/* Modal Fiche TP */}
         <TPSheetModal

@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { getDatabase } = require('../database/init');
 
 const router = express.Router();
@@ -128,7 +129,7 @@ router.get('/:id', (req, res) => {
 
 // Créer un nouvel étudiant
 router.post('/', (req, res) => {
-  const { first_name, last_name, date_de_naissance, email, class: className, group_id, project_id, role, coloration, photo } = req.body;
+  const { first_name, last_name, date_de_naissance, email, class: className, group_id, project_id, role, coloration, photo, username, password } = req.body;
   
   if (!first_name || !last_name) {
     return res.status(400).json({ 
@@ -138,6 +139,56 @@ router.post('/', (req, res) => {
   }
   
   const db = getDatabase();
+
+  // Utilitaires
+  const slugify = (str = '') =>
+    String(str)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, '');
+
+  const buildDefaultUsername = () => {
+    const ln = slugify(last_name || '');
+    const fn = slugify(first_name || '');
+    if (!ln && !fn) return null;
+    return [ln, fn].filter(Boolean).join('.');
+  };
+
+  const buildDefaultPassword = () => {
+    if (!date_de_naissance) return 'changeme123';
+    try {
+      // date_de_naissance peut être 'YYYY-MM-DD'
+      const d = new Date(date_de_naissance);
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = String(d.getFullYear());
+      return `${dd}${mm}${yyyy}`; // jjmmaaaa
+    } catch {
+      return 'changeme123';
+    }
+  };
+
+  const ensureUniqueUsername = (desired, cb) => {
+    if (!desired) return cb(null, null);
+    const base = desired;
+    let idx = 0;
+    const tryCandidate = () => {
+      const candidate = idx === 0 ? base : `${base}${idx + 1}`;
+      db.get('SELECT id FROM users WHERE username = ?', [candidate], (err, row) => {
+        if (err) return cb(err);
+        if (row) {
+          idx++;
+          tryCandidate();
+        } else {
+          cb(null, candidate);
+        }
+      });
+    };
+    tryCandidate();
+  };
   
   db.run(`
     INSERT INTO students (first_name, last_name, date_de_naissance, email, class, group_id, project_id, role, coloration, photo)
@@ -150,19 +201,108 @@ router.post('/', (req, res) => {
         message: 'Erreur lors de la création de l\'étudiant' 
       });
     }
-    
-    res.status(201).json({
-      success: true,
-      message: 'Étudiant créé avec succès',
-      data: {
-        id: this.lastID,
-        first_name,
-        last_name,
-        date_de_naissance,
-        class: className,
-        group_id,
-        project_id,
-        role
+
+    // Créer automatiquement un utilisateur "student" si on a assez d'informations
+    const desiredUsername = (username || buildDefaultUsername());
+    const plainPassword = (password || buildDefaultPassword());
+
+    ensureUniqueUsername(desiredUsername, async (uErr, finalUsername) => {
+      if (uErr) {
+        console.error('Erreur lors de la vérification du nom utilisateur:', uErr);
+        // Même si la création utilisateur échoue, on retourne la création élève
+        return res.status(201).json({
+          success: true,
+          message: 'Étudiant créé (création utilisateur non effectuée)',
+          data: {
+            id: this.lastID,
+            first_name,
+            last_name,
+            date_de_naissance,
+            class: className,
+            group_id,
+            project_id,
+            role
+          }
+        });
+      }
+
+      if (!finalUsername || !plainPassword) {
+        // Pas assez d'info pour créer l'utilisateur
+        return res.status(201).json({
+          success: true,
+          message: 'Étudiant créé avec succès',
+          data: {
+            id: this.lastID,
+            first_name,
+            last_name,
+            date_de_naissance,
+            class: className,
+            group_id,
+            project_id,
+            role
+          }
+        });
+      }
+
+      try {
+        const hashed = await bcrypt.hash(plainPassword, 10);
+        db.run(
+          `INSERT INTO users (username, password, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)`,
+          [finalUsername, hashed, email || null, first_name || null, last_name || null, 'student'],
+          (uInsErr) => {
+            if (uInsErr) {
+              console.error('Erreur lors de la création de l\'utilisateur élève:', uInsErr);
+              // Retourner tout de même la création élève
+              return res.status(201).json({
+                success: true,
+                message: 'Étudiant créé (création utilisateur échouée)',
+                data: {
+                  id: this.lastID,
+                  first_name,
+                  last_name,
+                  date_de_naissance,
+                  class: className,
+                  group_id,
+                  project_id,
+                  role
+                }
+              });
+            }
+
+            // Succès total
+            return res.status(201).json({
+              success: true,
+              message: 'Étudiant et utilisateur créés avec succès',
+              data: {
+                id: this.lastID,
+                first_name,
+                last_name,
+                date_de_naissance,
+                class: className,
+                group_id,
+                project_id,
+                role,
+                username: finalUsername
+              }
+            });
+          }
+        );
+      } catch (hashErr) {
+        console.error('Erreur hashage mot de passe:', hashErr);
+        return res.status(201).json({
+          success: true,
+          message: 'Étudiant créé (création utilisateur non effectuée)',
+          data: {
+            id: this.lastID,
+            first_name,
+            last_name,
+            date_de_naissance,
+            class: className,
+            group_id,
+            project_id,
+            role
+          }
+        });
       }
     });
   });
@@ -171,7 +311,7 @@ router.post('/', (req, res) => {
 // Mettre à jour un étudiant
 router.put('/:id', (req, res) => {
   const { id } = req.params;
-  const { first_name, last_name, date_de_naissance, email, class: className, group_id, project_id, role, coloration, photo } = req.body;
+  const { first_name, last_name, date_de_naissance, email, class: className, group_id, project_id, role, coloration, photo, username, password } = req.body;
   
   if (!first_name || !last_name) {
     return res.status(400).json({ 
@@ -181,6 +321,37 @@ router.put('/:id', (req, res) => {
   }
   
   const db = getDatabase();
+  const get = (sql, params=[]) => new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => err ? reject(err) : resolve(row));
+  });
+  const run = (sql, params=[]) => new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) { if (err) reject(err); else resolve(this); });
+  });
+  const slugify = (str = '') =>
+    String(str)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, '');
+  const buildDefaultUsername = () => {
+    const ln = slugify(last_name || '');
+    const fn = slugify(first_name || '');
+    if (!ln && !fn) return null;
+    return [ln, fn].filter(Boolean).join('.');
+  };
+  const ensureUniqueUsername = async (desired, userId) => {
+    if (!desired) return null;
+    const base = desired;
+    let idx = 0;
+    while (true) {
+      const candidate = idx === 0 ? base : `${base}${idx + 1}`;
+      const row = await get('SELECT id FROM users WHERE username = ? AND id != ?', [candidate, userId || -1]);
+      if (!row) return candidate;
+      idx++;
+    }
+  };
   
   db.run(`
     UPDATE students 
@@ -202,10 +373,63 @@ router.put('/:id', (req, res) => {
       });
     }
     
-    res.json({
-      success: true,
-      message: 'Étudiant mis à jour avec succès'
-    });
+    // Mettre à jour ou créer le compte utilisateur lié
+    (async () => {
+      try {
+        // Chercher l'utilisateur existant
+        let user = await get(
+          'SELECT * FROM users WHERE (lower(first_name)=lower(?) AND lower(last_name)=lower(?) AND role="student") OR (email IS NOT NULL AND email = ?)',
+          [first_name || '', last_name || '', email || null]
+        );
+
+        if (user) {
+          // Mettre à jour username (unicité) si fourni ou si besoin
+          const desired = username || buildDefaultUsername();
+          let finalUsername = user.username;
+          if (desired && desired !== user.username) {
+            finalUsername = await ensureUniqueUsername(desired, user.id);
+          }
+          await run(
+            `UPDATE users SET username = ?, email = ?, first_name = ?, last_name = ?, role = 'student', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [finalUsername, email || null, first_name || null, last_name || null, user.id]
+          );
+          if (password && String(password).trim()) {
+            const hashed = await require('bcryptjs').hash(String(password).trim(), 10);
+            await run(`UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [hashed, user.id]);
+          }
+        } else {
+          // Créer l'utilisateur si non existant
+          const desired = username || buildDefaultUsername();
+          const finalUsername = await ensureUniqueUsername(desired, null);
+          if (finalUsername) {
+            const plain = password && String(password).trim()
+              ? String(password).trim()
+              : (() => {
+                  try {
+                    const d = new Date(date_de_naissance);
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const yyyy = String(d.getFullYear());
+                    return `${dd}${mm}${yyyy}`;
+                  } catch { return 'changeme123'; }
+                })();
+            const hashed = await require('bcryptjs').hash(plain, 10);
+            await run(
+              `INSERT INTO users (username, password, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, 'student')`,
+              [finalUsername, hashed, email || null, first_name || null, last_name || null]
+            );
+          }
+        }
+      } catch (e) {
+        console.error('⚠️ Mise à jour du compte utilisateur élève échouée:', e);
+        // On ne bloque pas la réponse pour une erreur côté compte
+      }
+      
+      res.json({
+        success: true,
+        message: 'Étudiant mis à jour avec succès'
+      });
+    })();
   });
 });
 
@@ -1161,6 +1385,128 @@ router.post('/bulk', async (req, res) => {
       skipped: results.filter(r => r.status === 'skipped').length
     }
   });
+});
+
+// Générer des comptes utilisateur pour les étudiants déjà créés
+router.post('/generate-accounts', async (req, res) => {
+  const db = getDatabase();
+  const { school_year } = req.body || {};
+
+  const all = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+      db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows)));
+    });
+  const get = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+      db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)));
+    });
+  const run = (sql, params = []) =>
+    new Promise((resolve, reject) => {
+      db.run(sql, params, function (err) {
+        if (err) reject(err);
+        else resolve(this);
+      });
+    });
+
+  const slugify = (str = '') =>
+    String(str)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, '');
+
+  const buildDefaultUsername = (last_name, first_name) => {
+    const ln = slugify(last_name || '');
+    const fn = slugify(first_name || '');
+    if (!ln && !fn) return null;
+    return [ln, fn].filter(Boolean).join('.');
+  };
+
+  const buildDefaultPassword = (date_de_naissance) => {
+    if (!date_de_naissance) return 'changeme123';
+    try {
+      const d = new Date(date_de_naissance);
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = String(d.getFullYear());
+      return `${dd}${mm}${yyyy}`;
+    } catch {
+      return 'changeme123';
+    }
+  };
+
+  const ensureUniqueUsername = async (desired) => {
+    if (!desired) return null;
+    const base = desired;
+    let idx = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const candidate = idx === 0 ? base : `${base}${idx + 1}`;
+      const row = await get('SELECT id FROM users WHERE username = ?', [candidate]);
+      if (!row) return candidate;
+      idx++;
+    }
+  };
+
+  try {
+    const students = await all(
+      school_year
+        ? 'SELECT * FROM students WHERE school_year = ?'
+        : 'SELECT * FROM students',
+      school_year ? [school_year] : []
+    );
+
+    let created = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    for (const s of students) {
+      // Détection d'un compte existant: par (first_name,last_name,role='student') ou email
+      const existing =
+        (await get(
+          'SELECT id FROM users WHERE lower(first_name)=lower(?) AND lower(last_name)=lower(?) AND role="student"',
+          [s.first_name || '', s.last_name || '']
+        )) ||
+        (s.email
+          ? await get('SELECT id FROM users WHERE email = ?', [s.email])
+          : null);
+
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      const baseUsername = buildDefaultUsername(s.last_name, s.first_name);
+      const finalUsername = await ensureUniqueUsername(baseUsername);
+      if (!finalUsername) {
+        skipped++;
+        continue;
+      }
+      const plain = buildDefaultPassword(s.date_de_naissance);
+      const hashed = await require('bcryptjs').hash(plain, 10);
+      try {
+        await run(
+          'INSERT INTO users (username, password, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)',
+          [finalUsername, hashed, s.email || null, s.first_name || null, s.last_name || null, 'student']
+        );
+        created++;
+      } catch (e) {
+        console.error('❌ Erreur création utilisateur pour étudiant', s.id, e);
+        errors++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Génération des comptes terminée',
+      summary: { total: students.length, created, skipped, errors }
+    });
+  } catch (e) {
+    console.error('Erreur generate-accounts:', e);
+    res.status(500).json({ success: false, message: 'Erreur génération comptes' });
+  }
 });
 
 

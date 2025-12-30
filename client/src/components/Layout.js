@@ -19,8 +19,7 @@ import {
   ChevronDown,
   ChevronRight,
   BookOpen,
-  Building,
-  Brain
+  Building
 } from 'lucide-react';
 
 const Layout = () => {
@@ -77,28 +76,6 @@ const Layout = () => {
       href: '/dashboard', 
       icon: Home,
       permission: 'dashboard_view'
-    },
-    { 
-      name: 'CONDUITE DE PROJET/CHANTIER', 
-      icon: FolderOpen,
-      permission: 'projects_view',
-      submenu: [
-        { 
-          name: 'Projets/Chantiers', 
-          href: '/projects', 
-          permission: 'projects_view'
-        },
-        { 
-          name: 'Gestion des groupes', 
-          href: '/groups', 
-          permission: 'students_view'
-        },
-        { 
-          name: 'Planification', 
-          href: '/planning', 
-          permission: 'planning_view'
-        }
-      ]
     },
     { 
       name: 'Étudiants', 
@@ -193,42 +170,62 @@ const Layout = () => {
       permission: 'documents_view'
     },
     { 
-      name: 'Documents', 
-      href: '/documents', 
-      icon: FileText,
-      permission: 'documents_view'
+      name: 'Conduite de projet/chantier', 
+      icon: FolderOpen,
+      permission: 'projects_view',
+      submenu: [
+        { 
+          name: 'Projets/Chantiers', 
+          href: '/projects', 
+          permission: 'projects_view'
+        },
+        { 
+          name: 'Gestion des groupes', 
+          href: '/groups', 
+          permission: 'students_view'
+        },
+        { 
+          name: 'Planification', 
+          href: '/planning', 
+          permission: 'planning_view'
+        }
+      ]
     },
-    { 
-      name: 'Stage en entreprise', 
-      href: '/rapport-stage', 
-      icon: FileText,
-      permission: 'documents_view'
-    },
-    { 
-      name: 'Entreprise', 
-      href: '/entreprise', 
+    {
+      name: 'Entreprise',
       icon: Building2,
-      permission: 'documents_view'
-    },
-    { 
-      name: 'Neurosciences', 
-      href: '/neurosciences', 
-      icon: Brain,
-      permission: 'documents_view'
+      permission: 'documents_view',
+      submenu: [
+        {
+          name: 'Liste des entreprises',
+          href: '/entreprise',
+          permission: 'documents_view'
+        },
+        {
+          name: 'Stage en entreprise',
+          href: '/rapport-stage',
+          permission: 'documents_view'
+        }
+      ]
     },
     // Pages d'administration (seulement pour admin)
     ...(user?.role === 'admin' ? [
-      { 
-        name: 'Utilisateurs', 
-        href: '/users', 
-        icon: Users,
-        permission: 'users_view'
-      },
-      { 
-        name: 'Rôles', 
-        href: '/roles', 
-        icon: Shield,
-        permission: 'roles_view'
+      {
+        name: 'Paramètres',
+        icon: Settings,
+        permission: 'users_view',
+        submenu: [
+          { 
+            name: 'Utilisateurs', 
+            href: '/users', 
+            permission: 'users_view'
+          },
+          { 
+            name: 'Rôles', 
+            href: '/roles', 
+            permission: 'roles_view'
+          }
+        ]
       }
     ] : [])
   ].filter(item => hasPermission(item.permission));
@@ -263,7 +260,7 @@ const Layout = () => {
                     <div>
                       <button
                         onClick={() => toggleSubmenu(item.name)}
-                        className="group flex items-center justify-between w-full px-2 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        className="group flex items-center justify-between w-full px-2 py-2 text-base font-bold rounded-md text-left text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       >
                         <div className="flex items-center">
                           <item.icon className="mr-4 h-6 w-6" />
@@ -282,7 +279,7 @@ const Layout = () => {
                               key={subItem.name}
                               to={subItem.href}
                               className={({ isActive }) =>
-                                `group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                        `group flex items-center px-2 py-2 text-sm font-normal rounded-md text-left ${
                                   isActive
                                     ? 'bg-primary-100 text-primary-900'
                                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -300,7 +297,7 @@ const Layout = () => {
                     <NavLink
                       to={item.href}
                       className={({ isActive }) =>
-                        `group flex items-center px-2 py-2 text-base font-medium rounded-md ${
+                        `group flex items-center px-2 py-2 text-base font-bold rounded-md text-left ${
                           isActive
                             ? 'bg-primary-100 text-primary-900'
                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -360,7 +357,7 @@ const Layout = () => {
                     <div>
                       <button
                         onClick={() => toggleSubmenu(item.name)}
-                        className="group flex items-center justify-between w-full px-2 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        className="group flex items-center justify-between w-full px-2 py-2 text-sm font-bold rounded-md text-left text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       >
                         <div className="flex items-center">
                           <item.icon className="mr-3 h-5 w-5" />
@@ -379,7 +376,7 @@ const Layout = () => {
                               key={subItem.name}
                               to={subItem.href}
                               className={({ isActive }) =>
-                                `group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                                `group flex items-center px-2 py-2 text-sm font-normal rounded-md text-left ${
                                   isActive
                                     ? 'bg-primary-100 text-primary-900'
                                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -396,7 +393,7 @@ const Layout = () => {
                     <NavLink
                       to={item.href}
                       className={({ isActive }) =>
-                        `group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                        `group flex items-center px-2 py-2 text-sm font-bold rounded-md text-left ${
                           isActive
                             ? 'bg-primary-100 text-primary-900'
                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'

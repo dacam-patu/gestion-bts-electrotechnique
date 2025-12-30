@@ -15,10 +15,8 @@ import EvaluationsU61 from './pages/EvaluationsU61';
 import EvaluationsU62 from './pages/EvaluationsU62';
 import EvaluationsU52 from './pages/EvaluationsU52';
 import FicheTP from './pages/FicheTP';
-import Documents from './pages/Documents';
 import RapportStage from './pages/RapportStage';
 import Entreprise from './pages/Entreprise';
-import Neurosciences from './pages/Neurosciences';
 import Referentiel from './pages/Referentiel';
 import ReferentielPoles from './pages/ReferentielPoles';
 import ReferentielActivites from './pages/ReferentielActivites';
@@ -79,10 +77,8 @@ const AppContent = () => {
         <Route path="referentiel/unites" element={<ReferentielUnites />} />
         <Route path="referentiel/competences-taches" element={<ReferentielCompetencesTaches />} />
         <Route path="referentiel/contextes" element={<ReferentielContextes />} />
-        <Route path="documents" element={<Documents />} />
         <Route path="rapport-stage" element={<RapportStage />} />
         <Route path="entreprise" element={<Entreprise />} />
-        <Route path="neurosciences" element={<Neurosciences />} />
         <Route path="users" element={<Users />} />
         <Route path="roles" element={<Roles />} />
       </Route>

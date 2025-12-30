@@ -6,11 +6,11 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   console.log('🔍 TPSheetModal render - isOpen:', isOpen);
   
   const [content, setContent] = useState({
-    title: 'BTS ELECTROTECHNIQUE',
-    subject: 'ÉLECTROTECHNIQUE',
-    tpNumber: 'TP N°',
-    tpTitle: 'ANALYSE DIAGNOSTIC ET MAINTENANCE',
-    subtitle: 'Intervention sur armoire de commande électrique',
+    title: '',
+    subject: '',
+    tpNumber: '',
+    tpTitle: '',
+    subtitle: '',
     studentName: '',
     studentFirstName: '',
     studentClass: '',
@@ -22,8 +22,8 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
     competencies: '',
     workRequired: '',
     evaluation: '',
-    duration: '4 heures',
-    safety: 'Respect strict des consignes de sécurité électrique - Port des EPI obligatoire',
+    duration: '',
+    safety: '',
   });
 
   const [showNameModal, setShowNameModal] = useState(false);
@@ -301,9 +301,9 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   useEffect(() => {
     if (editingSheet) {
       setContent({
-        title: editingSheet.title || 'BTS ELECTROTECHNIQUE',
-        subject: editingSheet.subject || 'ÉLECTROTECHNIQUE',
-        tpNumber: editingSheet.tpNumber || 'TP N°',
+        title: editingSheet.title || '',
+        subject: editingSheet.subject || '',
+        tpNumber: editingSheet.tpNumber || '',
         tpTitle: editingSheet.tpTitle || '',
         subtitle: editingSheet.subtitle || '',
         studentName: editingSheet.studentName || '',
@@ -317,7 +317,7 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
         competencies: editingSheet.competencies || '',
         workRequired: editingSheet.work_required || '',
         evaluation: editingSheet.evaluation || '',
-        duration: editingSheet.duration || '4 heures',
+        duration: editingSheet.duration || '',
         safety: editingSheet.safety || '',
       });
 
@@ -337,6 +337,45 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
       }
     }
   }, [editingSheet]);
+
+  // Réinitialiser le formulaire à vide à l'ouverture en mode création
+  useEffect(() => {
+    if (isOpen && !editingSheet) {
+      setContent({
+        title: '',
+        subject: '',
+        tpNumber: '',
+        tpTitle: '',
+        subtitle: '',
+        studentName: '',
+        studentFirstName: '',
+        studentClass: '',
+        context: '',
+        objectives: '',
+        documents: '',
+        equipment: '',
+        tasks: '',
+        competencies: '',
+        workRequired: '',
+        evaluation: '',
+        duration: '',
+        safety: '',
+      });
+      setSelectedCompetencies([]);
+      setManualCompetencies([]);
+      setExcludedAutoCompetencies([]);
+      setSelectedTasks([]);
+      setSelectedEquipment([]);
+      setSelectedDocuments([]);
+      setAutoCriteria([]);
+      setManualCriteria([]);
+      setExcludedAutoCriteria([]);
+      setCustomCriterion('');
+      setCustomEquipment('');
+      setCustomDocument('');
+      setSheetName('');
+    }
+  }, [isOpen, editingSheet]);
 
   const handleSave = () => {
     if (editingSheet) {

@@ -31,8 +31,12 @@ const Students = () => {
     class: '',
     coloration: '',
     photo: '',
-    school_year: selectedYear
+    school_year: selectedYear,
+    username: '',
+    password: ''
   });
+  const [usernameEdited, setUsernameEdited] = useState(false);
+  const [passwordEdited, setPasswordEdited] = useState(false);
 
 
   useEffect(() => {
@@ -42,6 +46,41 @@ const Students = () => {
   useEffect(() => {
     setFormData(prev => ({ ...prev, school_year: selectedYear }));
   }, [selectedYear]);
+
+  // Générer identifiant par défaut "nom.prenom" si non modifié manuellement
+  useEffect(() => {
+    if (usernameEdited) return;
+    const slugify = (str = '') =>
+      String(str)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+        .replace(/\s+/g, '');
+    const ln = slugify(formData.last_name);
+    const fn = slugify(formData.first_name);
+    const candidate = [ln, fn].filter(Boolean).join('.');
+    setFormData(prev => ({ ...prev, username: candidate }));
+  }, [formData.first_name, formData.last_name, usernameEdited]);
+
+  // Générer mot de passe par défaut (jjmmaaaa) depuis la date de naissance
+  useEffect(() => {
+    if (passwordEdited) return;
+    if (!formData.date_de_naissance) {
+      setFormData(prev => ({ ...prev, password: '' }));
+      return;
+    }
+    try {
+      const d = new Date(formData.date_de_naissance);
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = String(d.getFullYear());
+      setFormData(prev => ({ ...prev, password: `${dd}${mm}${yyyy}` }));
+    } catch {
+      // ignore
+    }
+  }, [formData.date_de_naissance, passwordEdited]);
 
   useEffect(() => {
     setSelectAll(selectedStudents.length === students.length && students.length > 0);
@@ -129,8 +168,12 @@ const Students = () => {
       email: student.email || '',
       class: student.class || '',
       coloration: student.coloration || '',
-      photo: student.photo || ''
+      photo: student.photo || '',
+      username: '', // non stocké côté étudiant
+      password: ''
     });
+    setUsernameEdited(false);
+    setPasswordEdited(false);
     setShowModal(true);
   };
 
@@ -142,9 +185,13 @@ const Students = () => {
       email: '',
       class: '',
       coloration: '',
-      photo: ''
+      photo: '',
+      username: '',
+      password: ''
     });
     setPhotoFile(null);
+    setUsernameEdited(false);
+    setPasswordEdited(false);
   };
 
   // Fonctions pour gérer les options de coloration
@@ -367,6 +414,23 @@ const Students = () => {
           >
             <Upload className="h-4 w-4 mr-2" />
             Import CSV
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const res = await axios.post('/api/students/generate-accounts', { school_year: selectedYear });
+                const s = res.data.summary || {};
+                toast.success(`Comptes générés: ${s.created || 0} créés, ${s.skipped || 0} existants, ${s.errors || 0} erreurs`);
+              } catch (e) {
+                console.error(e);
+                toast.error(e.response?.data?.message || 'Erreur génération des comptes');
+              }
+            }}
+            className="btn btn-secondary flex items-center"
+            title="Créer les comptes pour tous les étudiants sans compte"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Générer comptes étudiants
           </button>
           <button
             onClick={() => setShowModal(true)}
@@ -697,6 +761,39 @@ const Students = () => {
                           Choisir
                         </button>
                       </div>
+                    </div>
+
+                    {/* Identifiants de connexion */}
+                    <div>
+                      <label className="label">Identifiant (login) *</label>
+                      <input
+                        type="text"
+                        required
+                        className="input"
+                        placeholder="nom.prenom"
+                        value={formData.username}
+                        onChange={(e) => {
+                          setUsernameEdited(true);
+                          setFormData({ ...formData, username: e.target.value });
+                        }}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Par défaut: nom.prenom (accents et espaces supprimés)</p>
+                    </div>
+                    <div>
+                      <label className="label">Mot de passe {editingStudent ? '(laisser vide pour ne pas changer)' : '*'}</label>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="jjmmaaaa"
+                        value={formData.password}
+                        onChange={(e) => {
+                          setPasswordEdited(true);
+                          setFormData({ ...formData, password: e.target.value });
+                        }}
+                      />
+                      {!editingStudent && (
+                        <p className="text-xs text-gray-500 mt-1">Par défaut: date de naissance au format jjmmaaaa</p>
+                      )}
                     </div>
                     
                   </div>
