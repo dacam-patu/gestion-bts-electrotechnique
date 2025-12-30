@@ -183,6 +183,44 @@ const Users = () => {
     return arr;
   }, [users, sortConfig]);
 
+  // Regroupement par rôle avec tri réutilisé
+  const sortUsers = (list) => {
+    if (!sortConfig.key) return list;
+    const arr = [...list];
+    const getValue = (u) => {
+      switch (sortConfig.key) {
+        case 'name': {
+          const display = (u.first_name && u.last_name) ? `${u.first_name} ${u.last_name}` : u.username || '';
+          return display.toLowerCase();
+        }
+        case 'role':
+          return (u.role || '').toLowerCase();
+        case 'status':
+          return u.is_active ? 1 : 0;
+        case 'created_at':
+          return new Date(u.created_at).getTime() || 0;
+        default:
+          return '';
+      }
+    };
+    arr.sort((a, b) => {
+      const va = getValue(a);
+      const vb = getValue(b);
+      if (va < vb) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (va > vb) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return arr;
+  };
+
+  const admins = React.useMemo(() => users.filter(u => u.role === 'admin'), [users]);
+  const teachers = React.useMemo(() => users.filter(u => u.role === 'teacher'), [users]);
+  const studentsOnly = React.useMemo(() => users.filter(u => u.role === 'student'), [users]);
+
+  const sortedAdmins = React.useMemo(() => sortUsers(admins), [admins, sortConfig]);
+  const sortedTeachers = React.useMemo(() => sortUsers(teachers), [teachers, sortConfig]);
+  const sortedStudents = React.useMemo(() => sortUsers(studentsOnly), [studentsOnly, sortConfig]);
+
   const getRoleBadge = (role) => {
     const badges = {
       admin: 'bg-red-100 text-red-800 border-red-200',
@@ -264,8 +302,11 @@ const Users = () => {
         </div>
       </div>
 
-      {/* Tableau des utilisateurs */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      {/* Administrateurs */}
+      <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
+        <div className="px-4 py-3 border-b">
+          <h2 className="text-lg font-semibold text-gray-900">Administrateurs</h2>
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -320,10 +361,11 @@ const Users = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sortedUsers.map((user) => (
+              {sortedAdmins.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
+                    <div className="relative flex items-center">
+                      <div className="absolute top-0 right-0 text-xs text-gray-400 z-10">@{user.username}</div>
                       <div className="flex-shrink-0 h-10 w-10">
                         <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
                           <User className="h-5 w-5 text-primary-600" />
@@ -340,8 +382,263 @@ const Users = () => {
                           <Mail className="h-3 w-3 mr-1" />
                           {user.email || 'Aucun email'}
                         </div>
-                        <div className="text-xs text-gray-400">
-                          @{user.username}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getRoleBadge(user.role)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getStatusBadge(user.is_active)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {new Date(user.created_at).toLocaleDateString('fr-FR')}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end space-x-2">
+                      <button
+                        onClick={() => handleEdit(user)}
+                        className="text-blue-600 hover:text-blue-900 p-1"
+                        title="Modifier"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => openPasswordModal(user)}
+                        className="text-yellow-600 hover:text-yellow-900 p-1"
+                        title="Changer le mot de passe"
+                      >
+                        <Lock className="h-4 w-4" />
+                      </button>
+                      {user.id !== 1 && (
+                        <button
+                          onClick={() => handleDelete(user.id)}
+                          className="text-red-600 hover:text-red-900 p-1"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Professeurs */}
+      <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
+        <div className="px-4 py-3 border-b">
+          <h2 className="text-lg font-semibold text-gray-900">Professeurs</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button
+                    onClick={() => handleSort('name')}
+                    className="flex items-center space-x-1 hover:text-gray-700 transition-colors"
+                  >
+                    <span>Utilisateur</span>
+                    {sortConfig.key === 'name' && (
+                      sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button
+                    onClick={() => handleSort('role')}
+                    className="flex items-center space-x-1 hover:text-gray-700 transition-colors"
+                  >
+                    <span>Rôle</span>
+                    {sortConfig.key === 'role' && (
+                      sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button
+                    onClick={() => handleSort('status')}
+                    className="flex items-center space-x-1 hover:text-gray-700 transition-colors"
+                  >
+                    <span>Statut</span>
+                    {sortConfig.key === 'status' && (
+                      sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button
+                    onClick={() => handleSort('created_at')}
+                    className="flex items-center space-x-1 hover:text-gray-700 transition-colors"
+                  >
+                    <span>Date de création</span>
+                    {sortConfig.key === 'created_at' && (
+                      sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {sortedTeachers.map((user) => (
+                <tr key={user.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="relative flex items-center">
+                      <div className="absolute top-0 right-0 text-xs text-gray-400 z-10">@{user.username}</div>
+                      <div className="flex-shrink-0 h-10 w-10">
+                        <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                          <User className="h-5 w-5 text-primary-600" />
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {user.first_name && user.last_name 
+                            ? `${user.first_name} ${user.last_name}`
+                            : user.username
+                          }
+                        </div>
+                        <div className="text-sm text-gray-500 flex items-center">
+                          <Mail className="h-3 w-3 mr-1" />
+                          {user.email || 'Aucun email'}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getRoleBadge(user.role)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getStatusBadge(user.is_active)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {new Date(user.created_at).toLocaleDateString('fr-FR')}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end space-x-2">
+                      <button
+                        onClick={() => handleEdit(user)}
+                        className="text-blue-600 hover:text-blue-900 p-1"
+                        title="Modifier"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => openPasswordModal(user)}
+                        className="text-yellow-600 hover:text-yellow-900 p-1"
+                        title="Changer le mot de passe"
+                      >
+                        <Lock className="h-4 w-4" />
+                      </button>
+                      {user.id !== 1 && (
+                        <button
+                          onClick={() => handleDelete(user.id)}
+                          className="text-red-600 hover:text-red-900 p-1"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Étudiants */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="px-4 py-3 border-b">
+          <h2 className="text-lg font-semibold text-gray-900">Étudiants</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button
+                    onClick={() => handleSort('name')}
+                    className="flex items-center space-x-1 hover:text-gray-700 transition-colors"
+                  >
+                    <span>Utilisateur</span>
+                    {sortConfig.key === 'name' && (
+                      sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button
+                    onClick={() => handleSort('role')}
+                    className="flex items-center space-x-1 hover:text-gray-700 transition-colors"
+                  >
+                    <span>Rôle</span>
+                    {sortConfig.key === 'role' && (
+                      sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button
+                    onClick={() => handleSort('status')}
+                    className="flex items-center space-x-1 hover:text-gray-700 transition-colors"
+                  >
+                    <span>Statut</span>
+                    {sortConfig.key === 'status' && (
+                      sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <button
+                    onClick={() => handleSort('created_at')}
+                    className="flex items-center space-x-1 hover:text-gray-700 transition-colors"
+                  >
+                    <span>Date de création</span>
+                    {sortConfig.key === 'created_at' && (
+                      sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {sortedStudents.map((user) => (
+                <tr key={user.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="relative flex items-center">
+                      <div className="absolute top-0 right-0 text-xs text-gray-400 z-10">@{user.username}</div>
+                      <div className="flex-shrink-0 h-10 w-10">
+                        <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                          <User className="h-5 w-5 text-primary-600" />
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {user.first_name && user.last_name 
+                            ? `${user.first_name} ${user.last_name}`
+                            : user.username
+                          }
+                        </div>
+                        <div className="text-sm text-gray-500 flex items-center">
+                          <Mail className="h-3 w-3 mr-1" />
+                          {user.email || 'Aucun email'}
                         </div>
                       </div>
                     </div>

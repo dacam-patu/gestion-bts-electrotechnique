@@ -31,8 +31,13 @@ const Login = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
+          <img
+            src="/logo patu.png"
+            alt="Logo PATU"
+            className="mx-auto mt-4 h-36 w-auto object-contain"
+          />
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            U52 BTS Électrotechnique
+            Gestion du BTS Electrotechnique
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Application de planification et suivi

@@ -29,6 +29,7 @@ import ReferentielDescriptionActivites from './pages/ReferentielDescriptionActiv
 import Users from './pages/Users';
 import Roles from './pages/Roles';
 import Layout from './components/Layout';
+import PlanFormationCreate from './pages/PlanFormationCreate';
 import Loading from './components/Loading';
 
 // Composant de protection des routes
@@ -56,13 +57,14 @@ const AppContent = () => {
           <Layout />
         </ProtectedRoute>
       }>
-        <Route index element={<Navigate to="/planning" replace />} />
+        <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="projects" element={<Projects />} />
         <Route path="students" element={<Students />} />
         <Route path="classes" element={<Classes />} />
         <Route path="groups" element={<Groups />} />
         <Route path="planning" element={<Planning />} />
+        <Route path="plan-formation/creer" element={<PlanFormationCreate />} />
         <Route path="evaluations" element={<EvaluationsU52 />} />
         <Route path="evaluations-u51" element={<EvaluationsU51New />} />
         <Route path="evaluations-u61" element={<EvaluationsU61 />} />

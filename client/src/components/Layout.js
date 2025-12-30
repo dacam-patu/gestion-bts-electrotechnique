@@ -192,6 +192,18 @@ const Layout = () => {
       ]
     },
     {
+      name: 'Plan de formation',
+      icon: BookOpen,
+      permission: 'planning_view',
+      submenu: [
+        {
+          name: 'Créer un plan',
+          href: '/plan-formation/creer',
+          permission: 'planning_view'
+        }
+      ]
+    },
+    {
       name: 'Entreprise',
       icon: Building2,
       permission: 'documents_view',

@@ -72,7 +72,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-purple-50">
       {/* En-tête */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
@@ -228,53 +228,6 @@ const Dashboard = () => {
 
       {/* Informations sur l'épreuve U52 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
-          <div className="flex items-center mb-4">
-            <Award className="h-6 w-6 text-primary-600 mr-2" />
-            <h3 className="text-lg font-medium text-gray-900">Épreuve U52</h3>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-              <span className="text-sm text-gray-700">Phase 1 : Planification</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full mr-3"></div>
-              <span className="text-sm text-gray-700">Phase 2 : Pilotage</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-              <span className="text-sm text-gray-700">Phase 3 : Soutenance</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center mb-4">
-            <CheckCircle className="h-6 w-6 text-green-600 mr-2" />
-            <h3 className="text-lg font-medium text-gray-900">Compétences évaluées</h3>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-sm font-medium text-gray-900">C1 : Recenser et prendre en compte les normes, les réglementations applicables au projet/chantier</span>
-              </div>
-              <span className="badge badge-info">5 points</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-sm font-medium text-gray-900">C3 : Gérer les risques et les aléas liés à la réalisation des tâches</span>
-              </div>
-              <span className="badge badge-info">5 points</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-sm font-medium text-gray-900">C12 : Gérer et conduire (y compris avec les documents de : organisation, planification, suivi, pilotage, réception etc.) le projet/chantier professionnel</span>
-              </div>
-              <span className="badge badge-info">10 points</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
