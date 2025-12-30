@@ -19,6 +19,15 @@ import Documents from './pages/Documents';
 import RapportStage from './pages/RapportStage';
 import Entreprise from './pages/Entreprise';
 import Neurosciences from './pages/Neurosciences';
+import Referentiel from './pages/Referentiel';
+import ReferentielPoles from './pages/ReferentielPoles';
+import ReferentielActivites from './pages/ReferentielActivites';
+import ReferentielTaches from './pages/ReferentielTaches';
+import ReferentielCompetences from './pages/ReferentielCompetences';
+import ReferentielCompetencesTaches from './pages/ReferentielCompetencesTaches';
+import ReferentielUnites from './pages/ReferentielUnites';
+import ReferentielContextes from './pages/ReferentielContextes';
+import ReferentielDescriptionActivites from './pages/ReferentielDescriptionActivites';
 import Users from './pages/Users';
 import Roles from './pages/Roles';
 import Layout from './components/Layout';
@@ -61,6 +70,15 @@ const AppContent = () => {
         <Route path="evaluations-u61" element={<EvaluationsU61 />} />
         <Route path="evaluations-u62" element={<EvaluationsU62 />} />
         <Route path="fiche-tp" element={<FicheTP />} />
+        <Route path="referentiel" element={<Referentiel />} />
+        <Route path="referentiel/description-activites" element={<ReferentielDescriptionActivites />} />
+        <Route path="referentiel/poles" element={<ReferentielPoles />} />
+        <Route path="referentiel/activites" element={<ReferentielActivites />} />
+        <Route path="referentiel/taches" element={<ReferentielTaches />} />
+        <Route path="referentiel/competences" element={<ReferentielCompetences />} />
+        <Route path="referentiel/unites" element={<ReferentielUnites />} />
+        <Route path="referentiel/competences-taches" element={<ReferentielCompetencesTaches />} />
+        <Route path="referentiel/contextes" element={<ReferentielContextes />} />
         <Route path="documents" element={<Documents />} />
         <Route path="rapport-stage" element={<RapportStage />} />
         <Route path="entreprise" element={<Entreprise />} />

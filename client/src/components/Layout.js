@@ -140,6 +140,53 @@ const Layout = () => {
       ]
     },
     { 
+      name: 'Référentiel', 
+      icon: BookOpen,
+      permission: 'evaluations_view',
+      submenu: [
+        {
+          name: 'Description des activités professionnelles',
+          href: '/referentiel/description-activites',
+          permission: 'evaluations_view'
+        },
+        {
+          name: 'Liste des pôles',
+          href: '/referentiel/poles',
+          permission: 'evaluations_view'
+        },
+        {
+          name: 'Liste des activités',
+          href: '/referentiel/activites',
+          permission: 'evaluations_view'
+        },
+        {
+          name: 'Liste des tâches',
+          href: '/referentiel/taches',
+          permission: 'evaluations_view'
+        },
+        {
+          name: 'Liste des compétences',
+          href: '/referentiel/competences',
+          permission: 'evaluations_view'
+        },
+        {
+          name: 'Compétences ↔︎ Tâches',
+          href: '/referentiel/competences-taches',
+          permission: 'evaluations_view'
+        },
+        {
+          name: 'Liste des unités',
+          href: '/referentiel/unites',
+          permission: 'evaluations_view'
+        },
+        {
+          name: 'Liste des contextes professionnels',
+          href: '/referentiel/contextes',
+          permission: 'evaluations_view'
+        }
+      ]
+    },
+    { 
       name: 'Fiche TP', 
       href: '/fiche-tp', 
       icon: BookOpen,

@@ -65,7 +65,7 @@ router.get('/', (req, res) => {
       });
       return; // stop here; response will be sent in callbacks
     }
-
+    
     console.log('🔍 Classes trouvées:', rows.length, rows.map(c => ({ id: c.id, name: c.name, school_year: c.school_year })));
     return res.json({ success: true, data: rows });
   });
