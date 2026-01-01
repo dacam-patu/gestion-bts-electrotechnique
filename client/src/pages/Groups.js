@@ -723,9 +723,9 @@ const Groups = () => {
                     {projects.map(project => {
                       const label = project.title || project.name || 'Projet sans nom';
                       return (
-                        <option key={project.id} value={project.id}>
+                      <option key={project.id} value={project.id}>
                           {label}
-                        </option>
+                      </option>
                       );
                     })}
                   </select>

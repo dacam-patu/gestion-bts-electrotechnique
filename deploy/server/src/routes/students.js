@@ -445,14 +445,14 @@ router.get('/groups/all', async (req, res) => {
           g.workers = byGroup.get(g.id) || [];
         });
         
-        console.log('✅ Groupes avec étudiants récupérés:', groupsWithStudents.length, 'groupes');
-        groupsWithStudents.forEach(group => {
+      console.log('✅ Groupes avec étudiants récupérés:', groupsWithStudents.length, 'groupes');
+      groupsWithStudents.forEach(group => {
           console.log(`  📁 ${group.name}: ${group.students.length} étudiants, ${group.workers.length} ouvriers`);
-        });
-        
-        res.json({ 
-          success: true, 
-          data: groupsWithStudents 
+      });
+      
+      res.json({ 
+        success: true, 
+        data: groupsWithStudents 
         });
       });
     });

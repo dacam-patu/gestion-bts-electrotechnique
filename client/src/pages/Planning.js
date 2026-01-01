@@ -1526,14 +1526,14 @@ const Planning = () => {
                           });
                           const aggregated = Array.from(agg.values()).slice(0, 3);
                           return aggregated.map(({ slots: groupSlots, repr }) => {
-                            const getPhaseColor = (phase) => {
-                              switch(parseInt(phase)) {
+                          const getPhaseColor = (phase) => {
+                            switch(parseInt(phase)) {
                                 case 1: return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
                                 case 2: return 'bg-orange-100 text-orange-800 hover:bg-orange-200';
                                 case 3: return 'bg-green-100 text-green-800 hover:bg-green-200';
-                                default: return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
-                              }
-                            };
+                              default: return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
+                            }
+                          };
                             const phaseColor = getPhaseColor(repr.phase);
                             // Préférer la liste complète d'étudiants du groupe si disponible
                             let studentNames = '';
@@ -1550,28 +1550,28 @@ const Planning = () => {
                             if (!studentNames) {
                               studentNames = Array.from(new Set(groupSlots.map(gs => `${gs.first_name} ${gs.last_name}`))).join(', ');
                             }
-                            return (
-                              <div
+                          return (
+                            <div
                                 key={`${repr.group_id || repr.groupId || 'nogroup'}|${repr.phase}|${repr.start_time}|${repr.end_time}`}
-                                className={`text-xs p-1 rounded cursor-pointer ${phaseColor}`}
+                              className={`text-xs p-1 rounded cursor-pointer ${phaseColor}`}
                                 onClick={(e) => { e.stopPropagation(); handleEditSlot(repr); }}
                                 title={`${repr.group_name || 'Groupe'} • ${studentNames} • ${repr.project_name || ''} • ${repr.start_time}-${repr.end_time} • ${repr.phase_name || `Phase ${repr.phase}`}`}
-                              >
+                            >
                                 <div className="font-medium text-[10px] mb-1">
                                   {(repr.group_name || 'Groupe')}{studentNames ? ` — ${studentNames}` : ''}
                                 </div>
                                 {repr.project_name && repr.project_name.trim() !== '' && (
-                                  <div className="text-[9px] font-semibold truncate bg-white bg-opacity-30 px-1 py-0.5 rounded text-center mb-1">
-                                    <span className="text-[7px] opacity-75">Projet/Chantier: </span>
+                                <div className="text-[9px] font-semibold truncate bg-white bg-opacity-30 px-1 py-0.5 rounded text-center mb-1">
+                                  <span className="text-[7px] opacity-75">Projet/Chantier: </span>
                                     {repr.project_name}
-                                  </div>
-                                )}
-                                <div className="text-[8px] font-medium opacity-90 mb-1">
-                                  Phase {repr.phase} - {repr.phase_name || (repr.phase === 1 ? 'Planification' : repr.phase === 2 ? 'Pilotage' : 'Soutenance')}
                                 </div>
-                                <div className="text-[8px] opacity-75">{repr.start_time}-{repr.end_time}</div>
+                              )}
+                              <div className="text-[8px] font-medium opacity-90 mb-1">
+                                  Phase {repr.phase} - {repr.phase_name || (repr.phase === 1 ? 'Planification' : repr.phase === 2 ? 'Pilotage' : 'Soutenance')}
                               </div>
-                            );
+                                <div className="text-[8px] opacity-75">{repr.start_time}-{repr.end_time}</div>
+                            </div>
+                          );
                           });
                         })()}
                         {daySlots.length > 3 && (

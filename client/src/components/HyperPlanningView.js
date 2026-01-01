@@ -529,7 +529,7 @@ const HyperPlanningView = ({
                                  {/* Jours de la semaine */}
                  {week.map((date, dayIndex) => {
                    const dayInfo = formatDisplayDate(date);
-                 const daySlots = filteredSlots.filter(slot => {
+                   const daySlots = filteredSlots.filter(slot => {
                    const parseDateOnly = (s) => {
                      if (!s) return null;
                      const iso = s.includes('T') ? s.split('T')[0] : s;
@@ -540,7 +540,7 @@ const HyperPlanningView = ({
                    const end = parseDateOnly(slot.end_date || slot.start_date);
                    const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
                    return start && day >= start && day <= end;
-                 });
+                   });
 
                   return (
                     <div key={dayIndex} className={`border-r min-h-full ${

@@ -276,6 +276,16 @@ const createTables = (resolve, reject) => {
       UNIQUE(group_id, student_id),
       FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
       FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL
+    )`,
+    
+    // Table pour sauvegarder le plan de formation
+    `CREATE TABLE IF NOT EXISTS plan_formation (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_year TEXT NOT NULL,
+      data TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(school_year)
     )`
   ];
 

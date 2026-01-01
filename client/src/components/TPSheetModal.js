@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Save, Download, Printer, Eye, CheckSquare, ListChecks, Wrench, FileText } from 'lucide-react';
 import { COMPETENCE_CRITERIA } from '../data/competenceCriteria';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   console.log('🔍 TPSheetModal render - isOpen:', isOpen);
@@ -50,82 +52,375 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   const [excludedAutoCriteria, setExcludedAutoCriteria] = useState([]);
   const [customCriterion, setCustomCriterion] = useState('');
 
-  // Éditeur riche minimal pour les rubriques (bold, listes, justification, taille)
+  const textEditorModules = {
+    toolbar: [
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      ['blockquote', 'code-block'],
+      ['clean'],
+    ],
+  };
+
+  const textEditorFormats = [
+    'bold',
+    'italic',
+    'underline',
+    'strike',
+    'list',
+    'bullet',
+    'blockquote',
+    'code-block',
+  ];
+
+  const workRequiredRef = useRef(null);
+  const safetyRef = useRef(null);
+
+  const updateField = (field, nextValue, cursorPos, ref) => {
+    setContent((prev) => ({ ...prev, [field]: nextValue }));
+    requestAnimationFrame(() => {
+      if (ref.current) {
+        ref.current.value = nextValue;
+        ref.current.setSelectionRange(cursorPos, cursorPos);
+        ref.current.focus();
+      }
+    });
+  };
+
+  const applyWrap = (field, ref, before, after = before) => {
+    if (!ref.current) return;
+    const el = ref.current;
+    const { selectionStart, selectionEnd, value } = el;
+    const selected = value.slice(selectionStart, selectionEnd);
+    const next =
+      value.slice(0, selectionStart) +
+      before +
+      selected +
+      after +
+      value.slice(selectionEnd);
+    updateField(field, next, selectionStart + before.length + selected.length + after.length, ref);
+  };
+
+  const applyList = (field, ref, bullet = '-') => {
+    if (!ref.current) return;
+    const el = ref.current;
+    const { selectionStart, selectionEnd, value } = el;
+    const before = value.slice(0, selectionStart);
+    const after = value.slice(selectionEnd);
+    const selected = value.slice(selectionStart, selectionEnd);
+    const lines = selected.length
+      ? selected.split(/\r?\n/)
+      : [''];
+    const formatted = lines
+      .map((line) => (line.trim() ? `${bullet} ${line.trim()}` : bullet))
+      .join('\n');
+    const next = before + formatted + after;
+    updateField(field, next, before.length + formatted.length, ref);
+  };
+
+  // Éditeur riche performant avec contentEditable natif - Version simplifiée
   const RichTextEditor = ({ value, onChange, placeholder }) => {
-    const editorRef = useRef(null);
-    const savedRangeRef = useRef(null);
+    const editorRef = React.useRef(null);
+    const isUpdatingRef = React.useRef(false);
+    const lastValueRef = React.useRef(value || '');
+    const isInitializedRef = React.useRef(false);
+    const savedSelectionRef = React.useRef(null);
+    const valuePropRef = React.useRef(value || '');
+    const [isFocused, setIsFocused] = React.useState(false);
+    
+    // Fonction pour sauvegarder la position du curseur
     const saveSelection = () => {
-      const sel = window.getSelection && window.getSelection();
-      if (sel && sel.rangeCount > 0) {
-        savedRangeRef.current = sel.getRangeAt(0);
+      if (editorRef.current && window.getSelection) {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          savedSelectionRef.current = selection.getRangeAt(0).cloneRange();
+        }
       }
     };
+    
+    // Fonction pour restaurer la position du curseur
     const restoreSelection = () => {
-      const sel = window.getSelection && window.getSelection();
-      if (sel && savedRangeRef.current) {
-        sel.removeAllRanges();
-        sel.addRange(savedRangeRef.current);
+      if (editorRef.current && savedSelectionRef.current && window.getSelection) {
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        try {
+          selection.addRange(savedSelectionRef.current);
+        } catch (e) {
+          // Si la restauration échoue, placer le curseur à la fin
+          const range = document.createRange();
+          range.selectNodeContents(editorRef.current);
+          range.collapse(false);
+          selection.addRange(range);
+        }
       }
     };
-    useEffect(() => {
-      if (editorRef.current && (value || '') !== editorRef.current.innerHTML) {
+    
+    // Initialiser le contenu au montage uniquement
+    React.useEffect(() => {
+      if (editorRef.current && !isInitializedRef.current) {
         editorRef.current.innerHTML = value || '';
+        lastValueRef.current = value || '';
+        valuePropRef.current = value || '';
+        isInitializedRef.current = true;
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [value]);
-    const exec = (cmd, arg = null) => {
-      // S'assurer que la sélection est dans l'éditeur
+    }, []); // Seulement au montage
+    
+    // Synchroniser seulement si la valeur change de l'extérieur (nouvelle fiche ou chargement)
+    // Mais seulement si l'éditeur n'est pas en train d'être modifié
+    React.useEffect(() => {
+      // Ne pas synchroniser si l'utilisateur est en train de taper
+      if (isUpdatingRef.current || isFocused) {
+        return;
+      }
+      
+      if (editorRef.current && value !== undefined && isInitializedRef.current) {
+        const newValue = value || '';
+        
+        // Ne mettre à jour que si la valeur prop a vraiment changé de l'extérieur
+        // (pas à cause de notre propre onChange)
+        if (newValue !== valuePropRef.current) {
+          valuePropRef.current = newValue;
+          const currentContent = editorRef.current.innerHTML || '';
+          
+          // Ne mettre à jour le DOM que si le contenu est différent
+          if (currentContent !== newValue) {
+            // Sauvegarder la sélection avant la mise à jour
+            saveSelection();
+            editorRef.current.innerHTML = newValue;
+            lastValueRef.current = newValue;
+            // Restaurer la sélection après la mise à jour
+            requestAnimationFrame(() => {
+              restoreSelection();
+            });
+          }
+        }
+      }
+    }, [value, isFocused]);
+    
+    const handleInput = (e) => {
+      if (editorRef.current && !isUpdatingRef.current) {
+        const html = editorRef.current.innerHTML || '';
+        
+        // Ne mettre à jour que si le contenu a vraiment changé
+        if (html !== lastValueRef.current) {
+          lastValueRef.current = html;
+          isUpdatingRef.current = true;
+          
+          // Mettre à jour la référence de la prop pour éviter les synchronisations inutiles
+          valuePropRef.current = html;
+          
+          // Appeler onChange de manière asynchrone pour ne pas bloquer
+          // et permettre au navigateur de maintenir le curseur
+          requestAnimationFrame(() => {
+            onChange(html);
+            // Réinitialiser le flag après un délai pour permettre au navigateur
+            // de maintenir la position du curseur
+            setTimeout(() => {
+              isUpdatingRef.current = false;
+            }, 100);
+          });
+        }
+      }
+    };
+    
+    const handleKeyDown = (e) => {
+      // Sauvegarder la sélection avant les actions de clavier
+      saveSelection();
+    };
+    
+    const handleFocus = (e) => {
+      setIsFocused(true);
+      // S'assurer que l'éditeur peut recevoir le focus
       if (editorRef.current) {
         editorRef.current.focus();
-        restoreSelection();
       }
-      document.execCommand(cmd, false, arg);
-      if (editorRef.current) onChange(editorRef.current.innerHTML);
-      saveSelection();
     };
-    const onInput = () => {
-      if (editorRef.current) onChange(editorRef.current.innerHTML);
-      saveSelection();
+    
+    const handleBlur = (e) => {
+      setIsFocused(false);
+      // S'assurer que la dernière valeur est sauvegardée
+      setTimeout(() => {
+        if (editorRef.current && !isUpdatingRef.current) {
+          const html = editorRef.current.innerHTML || '';
+          if (html !== lastValueRef.current) {
+            lastValueRef.current = html;
+            onChange(html);
+          }
+        }
+      }, 100);
     };
+    
+    const handlePaste = (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      // Utiliser insertText si disponible, sinon insertion manuelle
+      if (document.execCommand) {
+        document.execCommand('insertText', false, text);
+      } else {
+        // Fallback : insertion manuelle
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          const textNode = document.createTextNode(text);
+          range.insertNode(textNode);
+          range.setStartAfter(textNode);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
+      // Déclencher manuellement l'événement input
+      if (editorRef.current) {
+        const event = new Event('input', { bubbles: true });
+        editorRef.current.dispatchEvent(event);
+      }
+    };
+    
+    const execCommand = (command, value = null) => {
+      if (editorRef.current) {
+        // Sauvegarder la sélection avant l'exécution de la commande
+        saveSelection();
+        editorRef.current.focus();
+        restoreSelection();
+        
+        if (document.execCommand) {
+          document.execCommand(command, false, value);
+          
+          // Restaurer la sélection après la commande
+          requestAnimationFrame(() => {
+            if (editorRef.current) {
+              restoreSelection();
+              const html = editorRef.current.innerHTML || '';
+              lastValueRef.current = html;
+              onChange(html);
+            }
+          });
+        }
+      }
+    };
+    
+    
     return (
-      <div className="border-2 border-gray-300 rounded-lg overflow-visible">
-        <div className="flex flex-wrap gap-1 p-2 bg-gray-50 border-b">
-          <button type="button" className="btn text-xs px-2 py-1" title="Gras" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('bold')}><strong>B</strong></button>
-          <button type="button" className="btn text-xs px-2 py-1" title="Italique" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('italic')}><em>I</em></button>
-          <button type="button" className="btn text-xs px-2 py-1" title="Souligner" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('underline')}><span style={{ textDecoration: 'underline' }}>U</span></button>
-          <span className="mx-1 w-px h-5 bg-gray-300" />
-          <button type="button" className="btn text-xs px-2 py-1" title="Puces" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('insertUnorderedList')}>•</button>
-          <button type="button" className="btn text-xs px-2 py-1" title="Numérotation" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('insertOrderedList')}>1.</button>
-          <span className="mx-1 w-px h-5 bg-gray-300" />
-          <button type="button" className="btn text-xs px-2 py-1" title="Aligner à gauche" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('justifyLeft')}>⟸</button>
-          <button type="button" className="btn text-xs px-2 py-1" title="Centrer" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('justifyCenter')}>⋯</button>
-          <button type="button" className="btn text-xs px-2 py-1" title="Aligner à droite" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('justifyRight')}>⟹</button>
-          <button type="button" className="btn text-xs px-2 py-1" title="Justifier" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec('justifyFull')}>≋</button>
-          <span className="mx-1 w-px h-5 bg-gray-300" />
-          <select
-            className="input text-xs px-2 py-1"
-            onMouseDown={(e)=>e.preventDefault()}
-            onChange={(e) => exec('fontSize', e.target.value)}
-            defaultValue="3"
-            title="Taille"
+      <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white">
+        {/* Barre d'outils */}
+        <div className="border-b border-gray-300 bg-gray-50 p-2 flex flex-wrap gap-1">
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => execCommand('bold')}
+            className="px-2 py-1 hover:bg-gray-200 rounded text-sm font-bold"
+            title="Gras"
           >
-            <option value="2">Petit</option>
-            <option value="3">Normal</option>
-            <option value="4">Grand</option>
-            <option value="5">Très grand</option>
-          </select>
+            <strong>B</strong>
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => execCommand('italic')}
+            className="px-2 py-1 hover:bg-gray-200 rounded text-sm italic"
+            title="Italique"
+          >
+            <em>I</em>
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => execCommand('underline')}
+            className="px-2 py-1 hover:bg-gray-200 rounded text-sm underline"
+            title="Souligné"
+          >
+            <u>U</u>
+          </button>
+          <div className="w-px bg-gray-300 mx-1" />
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => execCommand('insertUnorderedList')}
+            className="px-2 py-1 hover:bg-gray-200 rounded text-sm"
+            title="Liste à puces"
+          >
+            •
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => execCommand('insertOrderedList')}
+            className="px-2 py-1 hover:bg-gray-200 rounded text-sm"
+            title="Liste numérotée"
+          >
+            1.
+          </button>
+          <div className="w-px bg-gray-300 mx-1" />
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => execCommand('justifyLeft')}
+            className="px-2 py-1 hover:bg-gray-200 rounded text-sm"
+            title="Aligner à gauche"
+          >
+            ⬅
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => execCommand('justifyCenter')}
+            className="px-2 py-1 hover:bg-gray-200 rounded text-sm"
+            title="Centrer"
+          >
+            ⬌
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => execCommand('justifyRight')}
+            className="px-2 py-1 hover:bg-gray-200 rounded text-sm"
+            title="Aligner à droite"
+          >
+            ➡
+          </button>
+          <div className="w-px bg-gray-300 mx-1" />
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => execCommand('removeFormat')}
+            className="px-2 py-1 hover:bg-gray-200 rounded text-sm"
+            title="Supprimer le formatage"
+          >
+            ✕
+          </button>
         </div>
-        <div
-          ref={editorRef}
-          className="p-3 min-h-[120px] bg-white richtext"
-          contentEditable
-          onInput={onInput}
-          onMouseUp={saveSelection}
-          onKeyUp={saveSelection}
-          onBlur={saveSelection}
-          data-placeholder={placeholder}
-          style={{ outline: 'none' }}
-        />
+        
+        {/* Zone d'édition */}
+        <div className="relative" style={{ minHeight: '200px' }}>
+          <div
+            ref={editorRef}
+            contentEditable="true"
+            onInput={handleInput}
+            onPaste={handlePaste}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            onKeyUp={handleInput}
+            className="p-4 min-h-[200px] focus:outline-none richtext"
+            style={{ 
+              minHeight: '200px', 
+              position: 'relative', 
+              zIndex: 1,
+              outline: 'none',
+              cursor: 'text',
+              userSelect: 'text',
+              WebkitUserSelect: 'text',
+              MozUserSelect: 'text',
+              whiteSpace: 'pre-wrap',
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word',
+              backgroundColor: 'white',
+              pointerEvents: 'auto'
+            }}
+            tabIndex={0}
+            suppressContentEditableWarning={true}
+            data-placeholder=""
+          />
+        </div>
       </div>
     );
   };
@@ -402,7 +697,7 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
         equipment: editingSheet.equipment || '',
         tasks: editingSheet.tasks || '',
         competencies: editingSheet.competencies || '',
-        workRequired: editingSheet.work_required || '',
+        workRequired: editingSheet.work_required || editingSheet.workRequired || '',
         evaluation: editingSheet.evaluation || '',
         duration: editingSheet.duration || '',
         safety: editingSheet.safety || '',
@@ -1008,10 +1303,13 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
                   <span className="bg-yellow-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3">8</span>
                   Travail Demandé
                 </h4>
-                <RichTextEditor
-                  value={content.workRequired}
-                  onChange={(html) => setContent({ ...content, workRequired: html })}
-                  placeholder="Décrivez le travail demandé… (gras, listes, justification, taille)"
+                <ReactQuill
+                  theme="snow"
+                  value={content.workRequired || ''}
+                  onChange={(html) => setContent((prev) => ({ ...prev, workRequired: html }))}
+                  modules={textEditorModules}
+                  formats={textEditorFormats}
+                  placeholder="Décrivez le travail demandé…"
                 />
               </div>
 
@@ -1070,12 +1368,15 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
                   <span className="bg-rose-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3">10</span>
                   Consignes de Sécurité
                 </h4>
-                <RichTextEditor
-                  value={content.safety}
-                  onChange={(html) => setContent({ ...content, safety: html })}
-                  placeholder="Décrivez les consignes de sécurité… (gras, listes, justification, taille)"
+                <ReactQuill
+                  theme="snow"
+                  value={content.safety || ''}
+                  onChange={(html) => setContent((prev) => ({ ...prev, safety: html }))}
+                  modules={textEditorModules}
+                  formats={textEditorFormats}
+                  placeholder="Décrivez les consignes de sécurité…"
                 />
-                </div>
+              </div>
                 </div>
               </div>
 

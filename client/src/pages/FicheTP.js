@@ -2,6 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Search, Filter, Edit, Trash2, Eye, Printer, Copy } from 'lucide-react';
 import TPSheetModal from '../components/TPSheetModal';
 import axios from 'axios';
+import PizZip from 'pizzip';
+import Docxtemplater from 'docxtemplater';
+import { saveAs } from 'file-saver';
+
+// Icône Word inline
+const WordIcon = ({ className = 'h-5 w-5' }) => (
+  <svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+    <rect x="56" y="24" width="176" height="208" rx="16" fill="#185ABD"/>
+    <rect x="24" y="56" width="128" height="144" rx="8" fill="#fff"/>
+    <path fill="#185ABD" d="M60 170 L76 90 L96 150 L116 90 L132 170 L116 170 L104 122 L92 170 Z"/>
+  </svg>
+);
 
 const FicheTP = () => {
   const [showTPSheetModal, setShowTPSheetModal] = useState(false);
@@ -517,6 +529,462 @@ const FicheTP = () => {
     };
   };
 
+  // Fonctions utilitaires pour l'export Word
+  const stripHtml = (html = '') => {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return (div.textContent || '').replace(/\u00A0/g, ' ').trim();
+  };
+
+  const splitLines = (s = '') => String(s).split('\n').map(v => v.trim()).filter(Boolean);
+
+  const schoolYear = () => {
+    const d = new Date(), y = d.getFullYear(), m = d.getMonth() + 1;
+    return m >= 8 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
+  };
+
+  // Convertir un texte en liste à puces pour Word (format tableau Docxtemplater)
+  const formatAsBulletList = (text) => {
+    if (!text) return [];
+    const lines = splitLines(text);
+    return lines.map(line => ({ text: line }));
+  };
+
+  // Convertir un texte en liste à puces simple (avec puces •)
+  const formatAsBulletText = (text) => {
+    if (!text) return '';
+    const lines = splitLines(text);
+    return lines.map(line => `• ${line}`).join('\n');
+  };
+
+  // Convertir un texte en liste numérotée pour Word (format tableau Docxtemplater)
+  const formatAsNumberedList = (text) => {
+    if (!text) return [];
+    
+    // Créer un élément DOM temporaire pour parser le HTML
+    const div = document.createElement('div');
+    div.innerHTML = text;
+    
+    // Fonction pour retirer les numéros existants
+    const removeExistingNumber = (text) => {
+      const numPattern = /^\d+\.\s*/;
+      return numPattern.test(text) ? text.replace(numPattern, '').trim() : text;
+    };
+    
+    // Extraire les éléments de liste <li> s'ils existent (priorité)
+    const listItems = div.querySelectorAll('ol li, ul li');
+    if (listItems.length > 0) {
+      return Array.from(listItems)
+        .map((li, index) => {
+          let text = li.textContent.trim();
+          if (text) {
+            text = removeExistingNumber(text);
+            return { 
+              num: index + 1,
+              text: text 
+            };
+          }
+          return null;
+        })
+        .filter(item => item !== null);
+    }
+    
+    // Extraire les paragraphes <p> s'ils existent
+    const paragraphs = div.querySelectorAll('p');
+    if (paragraphs.length > 0) {
+      return Array.from(paragraphs)
+        .map((p, index) => {
+          let text = p.textContent.trim();
+          if (text) {
+            text = removeExistingNumber(text);
+            return { 
+              num: index + 1,
+              text: text 
+            };
+          }
+          return null;
+        })
+        .filter(item => item !== null);
+    }
+    
+    // Si pas de structure HTML, extraire le texte brut et séparer par lignes
+    const plainText = stripHtml(text);
+    const lines = plainText.split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+    
+    return lines.map((line, index) => {
+      const cleanLine = removeExistingNumber(line);
+      return { 
+        num: index + 1,
+        text: cleanLine 
+      };
+    });
+  };
+
+  // Convertir un texte en liste numérotée simple (texte avec numéros) - une phrase par ligne et numérotée
+  const formatAsNumberedText = (text) => {
+    if (!text) return '';
+    
+    // Créer un élément DOM temporaire pour parser le HTML
+    const div = document.createElement('div');
+    div.innerHTML = text;
+    
+    // Extraire les éléments de liste <li> s'ils existent (priorité)
+    const listItems = div.querySelectorAll('ol li, ul li');
+    if (listItems.length > 0) {
+      const result = [];
+      Array.from(listItems).forEach((li, index) => {
+        // Extraire le texte de l'élément de liste
+        let text = li.textContent.trim();
+        
+        // Si l'élément contient des paragraphes, les traiter séparément
+        const paragraphs = li.querySelectorAll('p');
+        if (paragraphs.length > 0) {
+          paragraphs.forEach((p, pIndex) => {
+            let pText = p.textContent.trim();
+            if (pText) {
+              const numPattern = /^\d+\.\s*/;
+              if (numPattern.test(pText)) {
+                pText = pText.replace(numPattern, '').trim();
+              }
+              result.push(`${result.length + 1}. ${pText}`);
+            }
+          });
+        } else if (text) {
+          // Vérifier si le texte commence déjà par un numéro (format "1. ", "2. ", etc.)
+          const numPattern = /^\d+\.\s*/;
+          if (numPattern.test(text)) {
+            text = text.replace(numPattern, '').trim();
+          }
+          // Séparer par points suivis d'une majuscule (phrases)
+          // Pattern amélioré: point suivi d'espace(s) optionnel(s) et majuscule
+          const sentences = text.split(/\.\s*(?=[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞ])/);
+          
+          if (sentences.length > 1) {
+            sentences.forEach((sentence) => {
+              let cleanSentence = sentence.trim();
+              // Ajouter le point si la phrase ne se termine pas par un point
+              if (cleanSentence && !cleanSentence.endsWith('.')) {
+                cleanSentence += '.';
+              }
+              if (cleanSentence && cleanSentence.length > 0) {
+                result.push(`${result.length + 1}. ${cleanSentence}`);
+              }
+            });
+          } else {
+            // Si une seule phrase, vérifier s'il y a des points sans espace après
+            const altSentences = text.split(/\.(?=[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞ])/);
+            if (altSentences.length > 1) {
+              altSentences.forEach((sentence) => {
+                let cleanSentence = sentence.trim();
+                if (cleanSentence && !cleanSentence.endsWith('.')) {
+                  cleanSentence += '.';
+                }
+                if (cleanSentence && cleanSentence.length > 0) {
+                  result.push(`${result.length + 1}. ${cleanSentence}`);
+                }
+              });
+            } else {
+              result.push(`${result.length + 1}. ${text}`);
+            }
+          }
+        }
+      });
+      return result.join('\r\n'); // Utiliser \r\n pour Word
+    }
+    
+    // Extraire les paragraphes <p> s'ils existent - chaque paragraphe = une phrase
+    const paragraphs = div.querySelectorAll('p');
+    if (paragraphs.length > 0) {
+      const result = [];
+      Array.from(paragraphs).forEach((p) => {
+        let text = p.textContent.trim();
+        if (text) {
+          // Vérifier si le texte commence déjà par un numéro (format "1. ", "2. ", etc.)
+          const numPattern = /^\d+\.\s*/;
+          if (numPattern.test(text)) {
+            text = text.replace(numPattern, '').trim();
+          }
+          // Séparer par points suivis d'une majuscule (phrases)
+          const sentences = text.split(/\.\s*(?=[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞ])/);
+          
+          if (sentences.length > 1) {
+            sentences.forEach((sentence) => {
+              let cleanSentence = sentence.trim();
+              if (cleanSentence && !cleanSentence.endsWith('.')) {
+                cleanSentence += '.';
+              }
+              if (cleanSentence && cleanSentence.length > 0) {
+                result.push(`${result.length + 1}. ${cleanSentence}`);
+              }
+            });
+          } else {
+            // Si une seule phrase, vérifier s'il y a des points sans espace après
+            const altSentences = text.split(/\.(?=[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞ])/);
+            if (altSentences.length > 1) {
+              altSentences.forEach((sentence) => {
+                let cleanSentence = sentence.trim();
+                if (cleanSentence && !cleanSentence.endsWith('.')) {
+                  cleanSentence += '.';
+                }
+                if (cleanSentence && cleanSentence.length > 0) {
+                  result.push(`${result.length + 1}. ${cleanSentence}`);
+                }
+              });
+            } else {
+              result.push(`${result.length + 1}. ${text}`);
+            }
+          }
+        }
+      });
+      return result.join('\r\n'); // Utiliser \r\n pour Word
+    }
+    
+    // Si pas de structure HTML, extraire le texte brut
+    const plainText = stripHtml(text);
+    
+    // Séparer par retours à la ligne d'abord
+    let lines = plainText.split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+    
+    // Si une seule ligne ou plusieurs lignes, séparer par points suivis d'espaces (phrases)
+    if (lines.length > 0) {
+      const allSentences = [];
+      lines.forEach(line => {
+        // Séparer par points suivis d'une majuscule (avec ou sans espace)
+        // Pattern amélioré: point suivi d'espace(s) optionnel(s) et majuscule
+        let sentences = line.split(/\.\s*(?=[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞ])/);
+        
+        // Si aucune séparation, essayer avec point directement suivi de majuscule
+        if (sentences.length === 1) {
+          sentences = line.split(/\.(?=[A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞ])/);
+        }
+        
+        sentences.forEach((sentence) => {
+          let cleanSentence = sentence.trim();
+          // Ajouter le point si la phrase ne se termine pas par un point
+          if (cleanSentence && !cleanSentence.endsWith('.')) {
+            cleanSentence += '.';
+          }
+          if (cleanSentence && cleanSentence.length > 0) {
+            allSentences.push(cleanSentence);
+          }
+        });
+      });
+      
+      if (allSentences.length > 0) {
+        // Numéroter chaque phrase
+        return allSentences.map((sentence, index) => {
+          let cleanSentence = sentence.trim();
+          // Vérifier si la phrase commence déjà par un numéro
+          const numPattern = /^\d+\.\s*/;
+          if (numPattern.test(cleanSentence)) {
+            cleanSentence = cleanSentence.replace(numPattern, '').trim();
+          }
+          return `${index + 1}. ${cleanSentence}`;
+        }).join('\r\n');
+      }
+    }
+    
+    if (lines.length === 0) return '';
+    
+    // Fallback: numéroter chaque ligne
+    return lines.map((line, index) => {
+      let cleanLine = line.trim();
+      const numPattern = /^\d+\.\s*/;
+      if (numPattern.test(cleanLine)) {
+        cleanLine = cleanLine.replace(numPattern, '').trim();
+      }
+      return `${index + 1}. ${cleanLine}`;
+    }).join('\r\n'); // Utiliser \r\n pour Word (retour à la ligne Windows)
+  };
+
+  const buildTemplateData = (sheet = {}) => {
+    const evaluationText = sheet.evaluation || '';
+    
+    // Extraire le numéro de TP du titre si présent (ex: "TP 1" ou "TP1" ou "TP dépannage 2")
+    const extractTPNumber = (title) => {
+      if (!title) return '';
+      const match = title.match(/TP\s*(\d+)/i) || title.match(/(\d+)/);
+      return match ? match[1] : '';
+    };
+    
+    // Matière par défaut
+    const defaultMatiere = 'ANALYSE DIAGNOSTIC ET MAINTENANCE';
+    
+    return {
+      titre: sheet.title || '',
+      sous_titre: sheet.subtitle || '',
+      matiere: defaultMatiere, // Matière fixe pour BTS Électrotechnique
+      numero_tp: extractTPNumber(sheet.title || '') || (sheet.id ? `TP ${sheet.id}` : ''),
+      intitule_tp: sheet.title || '',
+      duree: sheet.duration || '4 heures',
+      nom_etudiant: '', // Non disponible dans la base de données
+      prenom_etudiant: '', // Non disponible dans la base de données
+      classe_etudiant: '', // Non disponible dans la base de données
+      contexte: stripHtml(sheet.context || ''),
+      objectifs: stripHtml(sheet.objectives || ''),
+      // Format liste à puces pour les rubriques qui le nécessitent (texte simple)
+      documents_texte: formatAsBulletText(sheet.documents || ''),
+      equipements_texte: formatAsBulletText(sheet.equipment || ''),
+      taches_texte: formatAsBulletText(sheet.tasks || ''),
+      competences_texte: formatAsBulletText(sheet.competencies || ''),
+      // Format liste numérotée pour le travail demandé - format texte avec numéros
+      travail_demande_texte: formatAsNumberedText(sheet.work_required || sheet.workRequired || ''),
+      criteres_evaluation_texte: formatAsBulletText(stripHtml(evaluationText)),
+      // Format liste numérotée pour les consignes de sécurité - format texte avec numéros
+      securite_texte: formatAsNumberedText(sheet.safety || ''),
+      questions_controle: formatAsBulletText(sheet.control_questions || sheet.controlQuestions || ''),
+      observations: sheet.observations || '',
+      date_du_jour: new Date().toLocaleDateString('fr-FR'),
+      annee_scolaire: schoolYear(),
+      // Tableaux pour Docxtemplater (format liste à puces)
+      documents: formatAsBulletList(sheet.documents || ''),
+      equipements: formatAsBulletList(sheet.equipment || ''),
+      taches: formatAsBulletList(sheet.tasks || ''),
+      competences: formatAsBulletList(sheet.competencies || ''),
+      criteres_evaluation: formatAsBulletList(stripHtml(evaluationText)),
+      // Tableaux pour liste numérotée (travail demandé et consignes de sécurité)
+      travail_demande: formatAsNumberedList(sheet.work_required || sheet.workRequired || ''),
+      securite: formatAsNumberedList(sheet.safety || ''),
+    };
+  };
+
+  const handleExportWord = async (sheet) => {
+    try {
+      console.log('📄 Export Word de la fiche:', sheet.title);
+      
+      // Charger le gabarit Word
+      const res = await fetch('/Gabarit_tp.docx');
+      if (!res.ok) {
+        throw new Error(`Le fichier Gabarit_tp.docx est introuvable dans client/public/\n\nVeuillez placer votre gabarit d'origine dans :\nclient/public/Gabarit_tp.docx`);
+      }
+      
+      const buf = await res.arrayBuffer();
+      
+      // Vérifier que le fichier n'est pas vide
+      if (buf.byteLength === 0) {
+        throw new Error('Le fichier Gabarit_tp.docx est vide ou corrompu');
+      }
+      
+      // Vérifier la taille minimale (un fichier Word valide fait au moins quelques KB)
+      if (buf.byteLength < 1000) {
+        throw new Error('Le fichier Gabarit_tp.docx semble trop petit et pourrait être corrompu');
+      }
+      
+      console.log('📦 Taille du gabarit:', buf.byteLength, 'bytes');
+      
+      let zip;
+      try {
+        zip = new PizZip(buf);
+      } catch (zipError) {
+        throw new Error('Le fichier Gabarit_tp.docx est corrompu ou n\'est pas un fichier Word valide. Veuillez le rouvrir et le sauvegarder avec Microsoft Word.');
+      }
+      
+      const doc = new Docxtemplater(zip, { 
+        paragraphLoop: true, 
+        linebreaks: true,
+        delimiters: {
+          start: '{{',
+          end: '}}'
+        },
+        nullGetter: (part) => {
+          // Si une variable n'est pas trouvée, retourner une chaîne vide au lieu de générer une erreur
+          console.warn(`⚠️ Variable non trouvée: ${part.module} ${part.value}`);
+          return '';
+        }
+      });
+      
+      // Remplir avec les données de la fiche
+      const data = buildTemplateData(sheet);
+      console.log('📝 Données pour le modèle:', data);
+      console.log('📋 Variables disponibles:', Object.keys(data).join(', '));
+      
+      try {
+        doc.setData(data);
+        doc.render();
+      } catch (renderError) {
+        console.error('❌ Erreur lors du rendu:', renderError);
+        // Afficher des détails sur l'erreur
+        if (renderError.properties && renderError.properties.errors) {
+          const errors = renderError.properties.errors.map(e => {
+            const varName = e.properties?.xtag || e.properties?.context || 'inconnue';
+            return `- ${e.name}: ${e.message}\n  Variable: ${varName}\n  Fichier: ${e.properties?.file || 'inconnu'}`;
+          }).join('\n\n');
+          throw new Error(`Erreur dans le gabarit Word:\n\n${errors}\n\n💡 Vérifiez que les variables dans votre gabarit sont au format {{nom_variable}} (avec doubles accolades)`);
+        }
+        throw renderError;
+      }
+      
+      // Créer le fichier blob
+      const out = doc.getZip().generate({
+        type: 'blob',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        compression: 'DEFLATE'
+      });
+      
+      // Télécharger le fichier avec possibilité de choisir l'emplacement
+      const name = (sheet.title || 'Fiche TP').replace(/[\\/:*?"<>|]/g, '_');
+      const fileName = `${name}.docx`;
+      
+      // Essayer d'abord avec l'API File System Access (Chrome, Edge moderne)
+      if ('showSaveFilePicker' in window) {
+        try {
+          const fileHandle = await window.showSaveFilePicker({
+            suggestedName: fileName,
+            types: [{
+              description: 'Document Word',
+              accept: {
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+              }
+            }]
+          });
+          
+          const writable = await fileHandle.createWritable();
+          await writable.write(out);
+          await writable.close();
+          
+          console.log('✅ Document Word enregistré avec succès via File System Access API');
+          alert(`✅ Document Word "${fileName}" enregistré avec succès !`);
+          return;
+        } catch (error) {
+          // Si l'utilisateur annule ou erreur, continuer avec la méthode de fallback
+          if (error.name !== 'AbortError') {
+            console.warn('⚠️ Erreur File System Access API:', error);
+          }
+        }
+      }
+      
+      // Fallback: utiliser saveAs qui devrait ouvrir la boîte de dialogue
+      try {
+        saveAs(out, fileName);
+        console.log('✅ Document Word généré avec succès');
+        // Laisser l'utilisateur interagir avec la boîte de dialogue
+      } catch (saveError) {
+        // Dernier fallback: créer un lien de téléchargement
+        console.warn('⚠️ saveAs a échoué, utilisation du fallback:', saveError);
+        const url = URL.createObjectURL(out);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 100);
+        alert(`✅ Document Word "${fileName}" prêt à être téléchargé !\n\nSi la boîte de dialogue ne s'ouvre pas, vérifiez les paramètres de téléchargement de votre navigateur.`);
+      }
+    } catch (e) {
+      console.error('❌ Erreur génération Word:', e);
+      const errorMsg = e.message || 'Erreur inconnue lors de la génération du document Word';
+      alert('❌ Erreur lors de la génération du document Word:\n\n' + errorMsg + '\n\n💡 Vérifiez que :\n- Le fichier Gabarit_tp.docx existe dans client/public/\n- Le fichier n\'est pas corrompu\n- Les variables dans le gabarit sont au format {nom_variable}');
+    }
+  };
+
   // Filtrer les fiches TP selon le terme de recherche
   const filteredTPSheets = tpSheets.filter(sheet =>
     sheet.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -707,6 +1175,13 @@ const FicheTP = () => {
                           
                           {/* Boutons d'actions */}
                           <div className="flex flex-col space-y-2 ml-4">
+                            <button
+                              onClick={() => handleExportWord(sheet)}
+                              className="p-2 text-[#185ABD] hover:bg-blue-50 rounded-md transition-colors border border-blue-200"
+                              title="Exporter en Word (.docx)"
+                            >
+                              <WordIcon className="h-5 w-5" />
+                            </button>
                             <button
                               onClick={() => handleDuplicateTPSheet(sheet)}
                               className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors border border-indigo-200"

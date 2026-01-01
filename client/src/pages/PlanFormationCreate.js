@@ -1059,6 +1059,10 @@ const PlanFormationCreate = () => {
   const [teacherColors, setTeacherColors] = useState({});
   const [showCal1, setShowCal1] = useState(false);
   const [showCal2, setShowCal2] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
+  const [schoolYear, setSchoolYear] = useState('2025-2026'); // Année scolaire par défaut
 
   // Weeks & bands computed
   const weeks1 = useMemo(
@@ -1071,6 +1075,57 @@ const PlanFormationCreate = () => {
     [data.calendrier2.dateDebut, data.calendrier2.dateFin]
   );
   const bands2 = useMemo(() => buildBlockedBands(weeks2, data.calendrier2), [weeks2, data.calendrier2]);
+
+  // Fonction pour charger les données depuis l'API (mémorisée)
+  const loadPlanFormation = React.useCallback(async (year) => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`/api/plan-formation/${year}`);
+      if (res.data?.success && res.data?.data) {
+        console.log('✅ Plan de formation chargé depuis la base de données');
+        setData(res.data.data);
+        setLastSaved(new Date());
+      } else {
+        console.log('ℹ️ Aucun plan de formation trouvé, utilisation des données par défaut');
+        setData(DEFAULT_DATA);
+      }
+    } catch (e) {
+      console.error('❌ Erreur lors du chargement du plan de formation:', e);
+      // En cas d'erreur, utiliser les données par défaut
+      setData(DEFAULT_DATA);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fonction pour sauvegarder les données dans l'API (mémorisée)
+  const savePlanFormation = React.useCallback(async (dataToSave, showMessage = false) => {
+    try {
+      setSaving(true);
+      const res = await axios.post('/api/plan-formation', {
+        schoolYear: schoolYear,
+        data: dataToSave
+      });
+      if (res.data?.success) {
+        setLastSaved(new Date());
+        if (showMessage) {
+          console.log('✅ Plan de formation sauvegardé avec succès');
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('❌ Erreur lors de la sauvegarde du plan de formation:', e);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [schoolYear]);
+
+  // Charger les données au montage
+  useEffect(() => {
+    loadPlanFormation(schoolYear);
+  }, [schoolYear, loadPlanFormation]);
 
   useEffect(() => {
     // Load teachers from API
@@ -1093,6 +1148,58 @@ const PlanFormationCreate = () => {
   useEffect(() => {
     if (!selectedProf && teachers.length > 0) setSelectedProf(teachers[0].id);
   }, [teachers, selectedProf]);
+
+  // Sauvegarde automatique avec debounce (2 secondes après la dernière modification)
+  useEffect(() => {
+    if (loading) return; // Ne pas sauvegarder pendant le chargement initial
+    
+    const timeoutId = setTimeout(() => {
+      savePlanFormation(data, false);
+    }, 2000); // Attendre 2 secondes après la dernière modification
+
+    return () => clearTimeout(timeoutId);
+  }, [data, loading, savePlanFormation]); // Sauvegarder quand data change
+
+  // Sauvegarder avant de quitter la page
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      // Sauvegarder de manière synchrone avec XMLHttpRequest
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/plan-formation', false); // false = synchrone
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      const dataToSave = JSON.stringify({ schoolYear, data });
+      try {
+        xhr.send(dataToSave);
+      } catch (err) {
+        console.error('Erreur sauvegarde avant fermeture:', err);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Sauvegarder quand la page devient invisible
+        savePlanFormation(data, false);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [data, schoolYear, savePlanFormation]);
+
+  // Fonction de sauvegarde manuelle
+  const handleManualSave = async () => {
+    const success = await savePlanFormation(data, true);
+    if (success) {
+      alert('✅ Plan de formation sauvegardé avec succès !');
+    } else {
+      alert('❌ Erreur lors de la sauvegarde. Veuillez réessayer.');
+    }
+  };
 
   const belongsToClasse = (m, classe) => {
     const c = String(m.classe || '').toUpperCase();
@@ -1136,11 +1243,42 @@ const PlanFormationCreate = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <select
+            className="input"
+            value={schoolYear}
+            onChange={(e) => {
+              setSchoolYear(e.target.value);
+              loadPlanFormation(e.target.value);
+            }}
+            disabled={loading || saving}
+          >
+            <option value="2025-2026">2025-2026</option>
+            <option value="2026-2027">2026-2027</option>
+            <option value="2027-2028">2027-2028</option>
+          </select>
           <button className="btn" onClick={() => setTab('generer')}>Données</button>
           <button className="btn btn-primary" onClick={handleGenerate}>Générer</button>
+          <button 
+            className={`btn ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={handleManualSave}
+            disabled={saving || loading}
+          >
+            {saving ? 'Sauvegarde...' : '💾 Sauvegarder'}
+          </button>
+          {lastSaved && (
+            <span className="text-xs text-gray-500">
+              Sauvé: {lastSaved.toLocaleTimeString('fr-FR')}
+            </span>
+          )}
           <button className="btn" onClick={exportPrint}>Exporter / Imprimer</button>
         </div>
       </div>
+      
+      {loading && (
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+          ⏳ Chargement du plan de formation...
+        </div>
+      )}
 
       <div className="flex gap-2 flex-wrap">
         <TabButton active={tab === 'generer'} onClick={() => setTab('generer')}>Données</TabButton>

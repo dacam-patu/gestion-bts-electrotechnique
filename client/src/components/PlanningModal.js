@@ -266,24 +266,24 @@ const PlanningModal = ({ slot, students, projects, groups = [], existingSlots = 
         const times = (phaseNum === 2 || phaseNum === 3) ? (perStudentTimes[st.id] || {}) : {};
         const stStart = (phaseNum === 2 || phaseNum === 3 ? times.start_time : formData.start_time) || '08:00';
         const stEnd = (phaseNum === 2 || phaseNum === 3 ? times.end_time : formData.end_time) || '17:00';
-        const cleanSlotData = {
+    const cleanSlotData = {
           id: null,
           student_id: parseInt(st.id),
-          project_id: parseInt(formData.project_id) || null,
-          start_date: formData.start_date,
+      project_id: parseInt(formData.project_id) || null,
+      start_date: formData.start_date,
           end_date: formData.end_date || formData.start_date,
           start_time: stStart,
           end_time: stEnd,
           phase: phaseNum,
           phase_name: phaseNames[phaseNum],
-          location: formData.location || '',
-          notes: formData.notes || '',
+      location: formData.location || '',
+      notes: formData.notes || '',
           first_name: st.first_name || '',
           last_name: st.last_name || '',
           project_name: project?.title || project?.name || ''
-        };
+    };
         console.log('🔍 PlanningModal - Créneau (par groupe):', cleanSlotData);
-        onSave(cleanSlotData);
+    onSave(cleanSlotData);
       });
       return;
     }

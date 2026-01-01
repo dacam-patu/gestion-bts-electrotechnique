@@ -15,6 +15,7 @@ const activityRoutes = require('./src/routes/activities');
 const absenceRoutes = require('./src/routes/absences');
 const classRoutes = require('./src/routes/classes');
 const tpSheetRoutes = require('./src/routes/tpSheets');
+const planFormationRoutes = require('./src/routes/planFormation');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,6 +39,7 @@ app.use('/api/activities', activityRoutes);
 app.use('/api/absences', absenceRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/tp-sheets', tpSheetRoutes);
+app.use('/api/plan-formation', planFormationRoutes);
 
 // Route pour servir le fichier Excel des entreprises
 app.get('/entreprise.csv', (req, res) => {
