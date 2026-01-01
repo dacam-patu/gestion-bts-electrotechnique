@@ -8,6 +8,7 @@ const roleRoutes = require('./src/routes/roles');
 const projectRoutes = require('./src/routes/projects');
 const studentRoutes = require('./src/routes/students');
 const evaluationRoutes = require('./src/routes/evaluations');
+const documentRoutes = require('./src/routes/documents');
 const planningRoutes = require('./src/routes/planning');
 const internshipRoutes = require('./src/routes/internships');
 const activityRoutes = require('./src/routes/activities');
@@ -15,7 +16,6 @@ const absenceRoutes = require('./src/routes/absences');
 const classRoutes = require('./src/routes/classes');
 const tpSheetRoutes = require('./src/routes/tpSheets');
 const visitesStageRoutes = require('./src/routes/visitesStage');
-const planFormationRoutes = require('./src/routes/planFormation');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -36,6 +36,7 @@ app.use('/api/roles', roleRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/evaluations', evaluationRoutes);
+app.use('/api/documents', documentRoutes);
 app.use('/api/planning', planningRoutes);
 app.use('/api/internships', internshipRoutes);
 app.use('/api/activities', activityRoutes);
@@ -43,7 +44,6 @@ app.use('/api/absences', absenceRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/tp-sheets', tpSheetRoutes);
 app.use('/api/visites-stage', visitesStageRoutes);
-app.use('/api/plan-formation', planFormationRoutes);
 
 // Route pour servir le fichier Excel des entreprises
 app.get('/entreprise.csv', (req, res) => {

@@ -184,7 +184,7 @@ const Users = () => {
   }, [users, sortConfig]);
 
   // Regroupement par rôle avec tri réutilisé
-  const sortUsers = (list) => {
+  const sortUsers = React.useCallback((list) => {
     if (!sortConfig.key) return list;
     const arr = [...list];
     const getValue = (u) => {
@@ -211,15 +211,15 @@ const Users = () => {
       return 0;
     });
     return arr;
-  };
+  }, [sortConfig]);
 
   const admins = React.useMemo(() => users.filter(u => u.role === 'admin'), [users]);
   const teachers = React.useMemo(() => users.filter(u => u.role === 'teacher'), [users]);
   const studentsOnly = React.useMemo(() => users.filter(u => u.role === 'student'), [users]);
 
-  const sortedAdmins = React.useMemo(() => sortUsers(admins), [admins, sortConfig]);
-  const sortedTeachers = React.useMemo(() => sortUsers(teachers), [teachers, sortConfig]);
-  const sortedStudents = React.useMemo(() => sortUsers(studentsOnly), [studentsOnly, sortConfig]);
+  const sortedAdmins = React.useMemo(() => sortUsers(admins), [admins, sortUsers]);
+  const sortedTeachers = React.useMemo(() => sortUsers(teachers), [teachers, sortUsers]);
+  const sortedStudents = React.useMemo(() => sortUsers(studentsOnly), [studentsOnly, sortUsers]);
 
   const getRoleBadge = (role) => {
     const badges = {

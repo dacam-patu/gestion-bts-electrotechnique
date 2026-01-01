@@ -1,18 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Save, Download, Printer, Eye, CheckSquare, ListChecks, Wrench, FileText } from 'lucide-react';
-import { COMPETENCE_CRITERIA } from '../data/competenceCriteria';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
 
 const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   console.log('🔍 TPSheetModal render - isOpen:', isOpen);
   
   const [content, setContent] = useState({
-    title: '',
-    subject: '',
-    tpNumber: '',
-    tpTitle: '',
-    subtitle: '',
+    title: 'BTS ELECTROTECHNIQUE',
+    subject: 'ÉLECTROTECHNIQUE',
+    tpNumber: 'TP N°',
+    tpTitle: 'ANALYSE DIAGNOSTIC ET MAINTENANCE',
+    subtitle: 'Intervention sur armoire de commande électrique',
     studentName: '',
     studentFirstName: '',
     studentClass: '',
@@ -24,18 +21,13 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
     competencies: '',
     workRequired: '',
     evaluation: '',
-    duration: '',
-    safety: '',
+    duration: '4 heures',
+    safety: 'Respect strict des consignes de sécurité électrique - Port des EPI obligatoire',
   });
 
   const [showNameModal, setShowNameModal] = useState(false);
   const [sheetName, setSheetName] = useState('');
   const [selectedCompetencies, setSelectedCompetencies] = useState([]);
-  // Séparer les compétences ajoutées automatiquement (via tâches) et celles ajoutées manuellement
-  const [autoCompetencies, setAutoCompetencies] = useState([]);
-  const [manualCompetencies, setManualCompetencies] = useState([]);
-  // Liste des compétences auto que l'utilisateur a explicitement retirées
-  const [excludedAutoCompetencies, setExcludedAutoCompetencies] = useState([]);
   const [showCompetenciesModal, setShowCompetenciesModal] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [showTasksModal, setShowTasksModal] = useState(false);
@@ -46,458 +38,20 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [customDocument, setCustomDocument] = useState('');
   const [isPrinting, setIsPrinting] = useState(false);
-  // Critères d'évaluation
-  const [autoCriteria, setAutoCriteria] = useState([]);
-  const [manualCriteria, setManualCriteria] = useState([]);
-  const [excludedAutoCriteria, setExcludedAutoCriteria] = useState([]);
-  const [customCriterion, setCustomCriterion] = useState('');
 
-  const textEditorModules = {
-    toolbar: [
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ list: 'ordered' }, { list: 'bullet' }],
-      ['blockquote', 'code-block'],
-      ['clean'],
-    ],
-  };
-
-  const textEditorFormats = [
-    'bold',
-    'italic',
-    'underline',
-    'strike',
-    'list',
-    'bullet',
-    'blockquote',
-    'code-block',
+  // Listes disponibles
+  const availableCompetencies = [
+    'C2 : Extraire les informations nécessaires à la réalisation des tâches',
+    'C13 : Mesurer les grandeurs caractéristiques d\'un ouvrage, d\'une installation, d\'un équipement électrique',
+    'C17 : Réaliser un diagnostic de performance y compris énergétique, de sécurité, d\'un ouvrage, d\'une installation, d\'un équipement électrique',
+    'C18 : Proposer des solutions techniques'
   ];
 
-  const workRequiredRef = useRef(null);
-  const safetyRef = useRef(null);
-
-  const updateField = (field, nextValue, cursorPos, ref) => {
-    setContent((prev) => ({ ...prev, [field]: nextValue }));
-    requestAnimationFrame(() => {
-      if (ref.current) {
-        ref.current.value = nextValue;
-        ref.current.setSelectionRange(cursorPos, cursorPos);
-        ref.current.focus();
-      }
-    });
-  };
-
-  const applyWrap = (field, ref, before, after = before) => {
-    if (!ref.current) return;
-    const el = ref.current;
-    const { selectionStart, selectionEnd, value } = el;
-    const selected = value.slice(selectionStart, selectionEnd);
-    const next =
-      value.slice(0, selectionStart) +
-      before +
-      selected +
-      after +
-      value.slice(selectionEnd);
-    updateField(field, next, selectionStart + before.length + selected.length + after.length, ref);
-  };
-
-  const applyList = (field, ref, bullet = '-') => {
-    if (!ref.current) return;
-    const el = ref.current;
-    const { selectionStart, selectionEnd, value } = el;
-    const before = value.slice(0, selectionStart);
-    const after = value.slice(selectionEnd);
-    const selected = value.slice(selectionStart, selectionEnd);
-    const lines = selected.length
-      ? selected.split(/\r?\n/)
-      : [''];
-    const formatted = lines
-      .map((line) => (line.trim() ? `${bullet} ${line.trim()}` : bullet))
-      .join('\n');
-    const next = before + formatted + after;
-    updateField(field, next, before.length + formatted.length, ref);
-  };
-
-  // Éditeur riche performant avec contentEditable natif - Version simplifiée
-  const RichTextEditor = ({ value, onChange, placeholder }) => {
-    const editorRef = React.useRef(null);
-    const isUpdatingRef = React.useRef(false);
-    const lastValueRef = React.useRef(value || '');
-    const isInitializedRef = React.useRef(false);
-    const savedSelectionRef = React.useRef(null);
-    const valuePropRef = React.useRef(value || '');
-    const [isFocused, setIsFocused] = React.useState(false);
-    
-    // Fonction pour sauvegarder la position du curseur
-    const saveSelection = () => {
-      if (editorRef.current && window.getSelection) {
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-          savedSelectionRef.current = selection.getRangeAt(0).cloneRange();
-        }
-      }
-    };
-    
-    // Fonction pour restaurer la position du curseur
-    const restoreSelection = () => {
-      if (editorRef.current && savedSelectionRef.current && window.getSelection) {
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        try {
-          selection.addRange(savedSelectionRef.current);
-        } catch (e) {
-          // Si la restauration échoue, placer le curseur à la fin
-          const range = document.createRange();
-          range.selectNodeContents(editorRef.current);
-          range.collapse(false);
-          selection.addRange(range);
-        }
-      }
-    };
-    
-    // Initialiser le contenu au montage uniquement
-    React.useEffect(() => {
-      if (editorRef.current && !isInitializedRef.current) {
-        editorRef.current.innerHTML = value || '';
-        lastValueRef.current = value || '';
-        valuePropRef.current = value || '';
-        isInitializedRef.current = true;
-      }
-    }, []); // Seulement au montage
-    
-    // Synchroniser seulement si la valeur change de l'extérieur (nouvelle fiche ou chargement)
-    // Mais seulement si l'éditeur n'est pas en train d'être modifié
-    React.useEffect(() => {
-      // Ne pas synchroniser si l'utilisateur est en train de taper
-      if (isUpdatingRef.current || isFocused) {
-        return;
-      }
-      
-      if (editorRef.current && value !== undefined && isInitializedRef.current) {
-        const newValue = value || '';
-        
-        // Ne mettre à jour que si la valeur prop a vraiment changé de l'extérieur
-        // (pas à cause de notre propre onChange)
-        if (newValue !== valuePropRef.current) {
-          valuePropRef.current = newValue;
-          const currentContent = editorRef.current.innerHTML || '';
-          
-          // Ne mettre à jour le DOM que si le contenu est différent
-          if (currentContent !== newValue) {
-            // Sauvegarder la sélection avant la mise à jour
-            saveSelection();
-            editorRef.current.innerHTML = newValue;
-            lastValueRef.current = newValue;
-            // Restaurer la sélection après la mise à jour
-            requestAnimationFrame(() => {
-              restoreSelection();
-            });
-          }
-        }
-      }
-    }, [value, isFocused]);
-    
-    const handleInput = (e) => {
-      if (editorRef.current && !isUpdatingRef.current) {
-        const html = editorRef.current.innerHTML || '';
-        
-        // Ne mettre à jour que si le contenu a vraiment changé
-        if (html !== lastValueRef.current) {
-          lastValueRef.current = html;
-          isUpdatingRef.current = true;
-          
-          // Mettre à jour la référence de la prop pour éviter les synchronisations inutiles
-          valuePropRef.current = html;
-          
-          // Appeler onChange de manière asynchrone pour ne pas bloquer
-          // et permettre au navigateur de maintenir le curseur
-          requestAnimationFrame(() => {
-            onChange(html);
-            // Réinitialiser le flag après un délai pour permettre au navigateur
-            // de maintenir la position du curseur
-            setTimeout(() => {
-              isUpdatingRef.current = false;
-            }, 100);
-          });
-        }
-      }
-    };
-    
-    const handleKeyDown = (e) => {
-      // Sauvegarder la sélection avant les actions de clavier
-      saveSelection();
-    };
-    
-    const handleFocus = (e) => {
-      setIsFocused(true);
-      // S'assurer que l'éditeur peut recevoir le focus
-      if (editorRef.current) {
-        editorRef.current.focus();
-      }
-    };
-    
-    const handleBlur = (e) => {
-      setIsFocused(false);
-      // S'assurer que la dernière valeur est sauvegardée
-      setTimeout(() => {
-        if (editorRef.current && !isUpdatingRef.current) {
-          const html = editorRef.current.innerHTML || '';
-          if (html !== lastValueRef.current) {
-            lastValueRef.current = html;
-            onChange(html);
-          }
-        }
-      }, 100);
-    };
-    
-    const handlePaste = (e) => {
-      e.preventDefault();
-      const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-      // Utiliser insertText si disponible, sinon insertion manuelle
-      if (document.execCommand) {
-        document.execCommand('insertText', false, text);
-      } else {
-        // Fallback : insertion manuelle
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          range.deleteContents();
-          const textNode = document.createTextNode(text);
-          range.insertNode(textNode);
-          range.setStartAfter(textNode);
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-      }
-      // Déclencher manuellement l'événement input
-      if (editorRef.current) {
-        const event = new Event('input', { bubbles: true });
-        editorRef.current.dispatchEvent(event);
-      }
-    };
-    
-    const execCommand = (command, value = null) => {
-      if (editorRef.current) {
-        // Sauvegarder la sélection avant l'exécution de la commande
-        saveSelection();
-        editorRef.current.focus();
-        restoreSelection();
-        
-        if (document.execCommand) {
-          document.execCommand(command, false, value);
-          
-          // Restaurer la sélection après la commande
-          requestAnimationFrame(() => {
-            if (editorRef.current) {
-              restoreSelection();
-              const html = editorRef.current.innerHTML || '';
-              lastValueRef.current = html;
-              onChange(html);
-            }
-          });
-        }
-      }
-    };
-    
-    
-    return (
-      <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white">
-        {/* Barre d'outils */}
-        <div className="border-b border-gray-300 bg-gray-50 p-2 flex flex-wrap gap-1">
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => execCommand('bold')}
-            className="px-2 py-1 hover:bg-gray-200 rounded text-sm font-bold"
-            title="Gras"
-          >
-            <strong>B</strong>
-          </button>
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => execCommand('italic')}
-            className="px-2 py-1 hover:bg-gray-200 rounded text-sm italic"
-            title="Italique"
-          >
-            <em>I</em>
-          </button>
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => execCommand('underline')}
-            className="px-2 py-1 hover:bg-gray-200 rounded text-sm underline"
-            title="Souligné"
-          >
-            <u>U</u>
-          </button>
-          <div className="w-px bg-gray-300 mx-1" />
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => execCommand('insertUnorderedList')}
-            className="px-2 py-1 hover:bg-gray-200 rounded text-sm"
-            title="Liste à puces"
-          >
-            •
-          </button>
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => execCommand('insertOrderedList')}
-            className="px-2 py-1 hover:bg-gray-200 rounded text-sm"
-            title="Liste numérotée"
-          >
-            1.
-          </button>
-          <div className="w-px bg-gray-300 mx-1" />
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => execCommand('justifyLeft')}
-            className="px-2 py-1 hover:bg-gray-200 rounded text-sm"
-            title="Aligner à gauche"
-          >
-            ⬅
-          </button>
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => execCommand('justifyCenter')}
-            className="px-2 py-1 hover:bg-gray-200 rounded text-sm"
-            title="Centrer"
-          >
-            ⬌
-          </button>
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => execCommand('justifyRight')}
-            className="px-2 py-1 hover:bg-gray-200 rounded text-sm"
-            title="Aligner à droite"
-          >
-            ➡
-          </button>
-          <div className="w-px bg-gray-300 mx-1" />
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => execCommand('removeFormat')}
-            className="px-2 py-1 hover:bg-gray-200 rounded text-sm"
-            title="Supprimer le formatage"
-          >
-            ✕
-          </button>
-        </div>
-        
-        {/* Zone d'édition */}
-        <div className="relative" style={{ minHeight: '200px' }}>
-          <div
-            ref={editorRef}
-            contentEditable="true"
-            onInput={handleInput}
-            onPaste={handlePaste}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            onKeyDown={handleKeyDown}
-            onKeyUp={handleInput}
-            className="p-4 min-h-[200px] focus:outline-none richtext"
-            style={{ 
-              minHeight: '200px', 
-              position: 'relative', 
-              zIndex: 1,
-              outline: 'none',
-              cursor: 'text',
-              userSelect: 'text',
-              WebkitUserSelect: 'text',
-              MozUserSelect: 'text',
-              whiteSpace: 'pre-wrap',
-              wordWrap: 'break-word',
-              overflowWrap: 'break-word',
-              backgroundColor: 'white',
-              pointerEvents: 'auto'
-            }}
-            tabIndex={0}
-            suppressContentEditableWarning={true}
-            data-placeholder=""
-          />
-        </div>
-      </div>
-    );
-  };
-
-  // Référentiel - Liste des tâches (mêmes libellés que Référentiel > Liste des tâches)
-  const ALL_TASKS = [
-    'T 1.1 : analyser et/ou élaborer les documents relatifs aux besoins du client/utilisateur',
-    'T 1.2 : élaborer un avant-projet/chantier (ou avant-projet sommaire)',
-    'T 1.3 : dimensionner les constituants de l’installation',
-    'T 1.4 : définir les coûts pour préparer une offre commerciale',
-    'T 2.1 : choisir les matériels',
-    'T 2.2 : réaliser les documents techniques du projet/chantier',
-    'T 3.1 : proposer un protocole pour analyser le fonctionnement et/ou le comportement de l’installation',
-    'T 3.2 : mesurer et contrôler l’installation, exploiter les mesures pour faire le diagnostic',
-    'T 3.3 : formuler des préconisations',
-    'T 4.1 : organiser la maintenance',
-    'T 4.2 : réaliser la maintenance préventive ou prévisionnelle',
-    'T 4.3 : réaliser la maintenance corrective',
-    'T 5.1 : s’approprier et vérifier les informations relatives au projet/chantier',
-    'T 5.2 : planifier les étapes du projet/chantier',
-    'T 5.3 : assurer le suivi de la réalisation du projet/chantier (coûts, délais, qualité)',
-    'T 5.4 : faire appliquer les règles liées à la santé, la sécurité et l’environnement',
-    'T 5.5 : gérer et animer l’équipe projet/chantier',
-    'T 6.1 : organiser l’espace de travail',
-    'T 6.2 : implanter, poser, installer, câbler, raccorder les matériels électriques',
-    'T 6.3 : programmer les applications métiers',
-    'T 7.1 : réaliser les contrôles, les configurations, les essais fonctionnels',
-    'T 7.2 : vérifier le fonctionnement de l’installation',
-    'T 7.3 : réceptionner l’installation avec le client/utilisateur',
-    'T 8.1 : constituer et mettre à jour les dossiers du projet/chantier',
-    'T 8.2 : échanger, y compris en langue anglaise, avec les parties prenantes du projet/chantier',
-    'T 8.3 : expliquer, y compris en langue anglaise, le fonctionnement de l’installation et former le client/utilisateur à son utilisation',
-    'T 8.4 : préparer et animer des réunions',
-    'T 8.5 : présenter et argumenter, y compris en langue anglaise, une offre à un client/utilisateur'
+  const availableTasks = [
+    'T3.1 : proposer un protocole pour analyser le fonctionnement et/ou le comportement de l\'installation.',
+    'T3.2 : mesurer et contrôler l\'installation, exploiter les mesures pour faire le diagnostic.',
+    'T3.3 : Formuler des préconisations.'
   ];
-
-  // Référentiel - Liste complète des compétences (C1..C18)
-  const COMPETENCE_LABELS = {
-    'C1': 'recenser et prendre en compte les normes, les réglementations applicables au projet/chantier',
-    'C2': 'extraire les informations nécessaires à la réalisation des tâches',
-    'C3': 'gérer les risques et les aléas liés à la réalisation des tâches',
-    'C4': 'communiquer de manière adaptée à l\'oral, à l\'écrit, y compris en langue anglaise',
-    'C5': 'interpréter un besoin client/utilisateur, un CCTP, un cahier des charges',
-    'C6': 'modéliser le comportement de tout ou partie d’un ouvrage, d’une installation, d’un équipement électrique',
-    'C7': 'simuler le comportement de tout ou partie d’un ouvrage, d’une installation, d’un équipement électrique',
-    'C8': 'dimensionner les constituants d’un ouvrage, d’une installation, d’un équipement électrique',
-    'C9': 'choisir les constituants d’un ouvrage, d’une installation, d’un équipement électrique',
-    'C10': 'proposer l’architecture d’un ouvrage, d’une installation, d’un équipement électrique',
-    'C11': 'réaliser les documents du projet/chantier (plans, schémas, maquette virtuelle, etc.)',
-    'C12': 'gérer et conduire (y compris avec les documents de : organisation, planification, suivi, pilotage, réception, etc.) le projet/chantier',
-    'C13': 'mesurer les grandeurs caractéristiques d’un ouvrage, d’une installation, d’un équipement électrique',
-    'C14': 'réaliser un ouvrage, une installation, un équipement électrique',
-    'C15': 'configurer et programmer les matériels dans le cadre du projet/chantier',
-    'C16': 'appliquer un protocole pour mettre en service un ouvrage, une installation, un équipement électrique',
-    'C17': 'réaliser un diagnostic de performance y compris énergétique, de sécurité, d’un ouvrage, d’une installation, d’un équipement électrique',
-    'C18': 'réaliser des opérations de maintenance sur un ouvrage, une installation, un équipement électrique'
-  };
-  const ALL_COMPETENCIES = Object.entries(COMPETENCE_LABELS).map(([k, v]) => `${k} : ${v}`);
-
-  // Référentiel - Correspondances Tâche -> Compétences
-  const TASK_TO_COMPETENCIES = {
-    'T 5.2': ['C1', 'C10'], 'T 5.4': ['C1', 'C3'],
-    'T 3.1': ['C2'], 'T 4.1': ['C2'], 'T 4.2': ['C2', 'C13', 'C18'], 'T 4.3': ['C2', 'C13', 'C17', 'C18'],
-    'T 5.3': ['C3'], 
-    'T 7.3': ['C4'], 'T 8.2': ['C4', 'C12'], 'T 8.3': ['C4'], 'T 8.4': ['C4'], 'T 8.5': ['C4', 'C5', 'C10'],
-    'T 1.1': ['C5'], 'T 1.2': ['C5', 'C6', 'C8', 'C10'], 'T 1.3': ['C5', 'C6', 'C8'], 'T 1.4': ['C5'],
-    'T 2.1': ['C7', 'C9'], 'T 2.2': ['C11'], 
-    'T 5.1': ['C12'], 'T 5.5': ['C12'],
-    'T 3.2': ['C13', 'C17'], 'T 3.3': ['C17'],
-    'T 6.1': ['C14'], 'T 6.2': ['C14'],
-    'T 6.3': ['C15'], 'T 7.1': ['C15', 'C16'], 'T 7.2': ['C15', 'C16'],
-    'T 8.1': ['C11']
-  };
-
-  // Listes disponibles pour les modaux
-  const availableTasks = ALL_TASKS;
-  const availableCompetencies = ALL_COMPETENCIES;
 
   const availableEquipment = [
     'Pont roulant - Ledent',
@@ -526,21 +80,8 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   };
 
   const handleCompetenciesModalSave = () => {
-    // Calculer les ajouts manuels sélectionnés par l'utilisateur
-    const newManual = selectedCompetencies.filter(c => !autoCompetencies.includes(c));
-    setManualCompetencies(newManual);
-
-    // Calculer les compétences auto explicitement retirées par l'utilisateur
-    const newExcludedAuto = autoCompetencies.filter(c => !selectedCompetencies.includes(c));
-    setExcludedAutoCompetencies(newExcludedAuto);
-
-    // Appliquer l'exclusion aux auto et fusionner
-    const effectiveAuto = autoCompetencies.filter(c => !newExcludedAuto.includes(c));
-    const merged = Array.from(new Set([...newManual, ...effectiveAuto]));
-    setSelectedCompetencies(merged);
-    setContent(prev => ({ ...prev, competencies: merged.join('\n') }));
-    // Mettre à jour les critères d'observation proposés
-    updateCriteriaFromSelected(merged);
+    const competenciesText = selectedCompetencies.join('\n');
+    setContent(prev => ({ ...prev, competencies: competenciesText }));
     setShowCompetenciesModal(false);
   };
 
@@ -555,75 +96,8 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
 
   const handleTasksModalSave = () => {
     const tasksText = selectedTasks.join('\n');
-    // Déterminer les compétences associées aux tâches sélectionnées
-    const detectedCompetenceCodes = new Set();
-    selectedTasks.forEach(task => {
-      const code = task.split(':')[0].trim(); // ex "T 3.2"
-      const linked = TASK_TO_COMPETENCIES[code] || [];
-      linked.forEach(c => detectedCompetenceCodes.add(c));
-    });
-    // Convertir en libellés "Cxx : label"
-    const autoList = Array.from(detectedCompetenceCodes).map(c => `${c} : ${COMPETENCE_LABELS[c]}`);
-    setAutoCompetencies(autoList);
-    // Appliquer les exclusions auto si existantes
-    const effectiveAuto = autoList.filter(c => !(excludedAutoCompetencies || []).includes(c));
-    const merged = Array.from(new Set([...(manualCompetencies || []), ...effectiveAuto]));
-    setSelectedCompetencies(merged);
-    // Mettre à jour le texte
-    const competenciesText = merged.join('\n');
-    setContent(prev => ({ ...prev, tasks: tasksText, competencies: competenciesText }));
-    // Mettre à jour les critères d'observation proposés
-    updateCriteriaFromSelected(merged);
+    setContent(prev => ({ ...prev, tasks: tasksText }));
     setShowTasksModal(false);
-  };
-
-  // Utilitaires pour gérer les critères d'observation
-  const extractCodes = (competencyItems) => {
-    // Items format "C1 : label" -> "C1"
-    return (competencyItems || []).map(it => (it.split(':')[0] || '').trim()).filter(Boolean);
-  };
-
-  const updateCriteriaFromSelected = (competencyItems) => {
-    const codes = extractCodes(competencyItems);
-    // Union de tous les critères liés aux codes
-    const nextAuto = Array.from(new Set(
-      codes.flatMap(c => COMPETENCE_CRITERIA[c] || [])
-    ));
-    setAutoCriteria(nextAuto);
-    const effectiveAuto = nextAuto.filter(cr => !(excludedAutoCriteria || []).includes(cr));
-    const mergedCriteria = Array.from(new Set([...(manualCriteria || []), ...effectiveAuto]));
-    setContent(prev => ({ ...prev, evaluation: mergedCriteria.join('\n') }));
-  };
-
-  const handleAddCriterion = () => {
-    const value = (customCriterion || '').trim();
-    if (!value) return;
-    const nextManual = Array.from(new Set([...(manualCriteria || []), value]));
-    setManualCriteria(nextManual);
-    setCustomCriterion('');
-    const effectiveAuto = (autoCriteria || []).filter(cr => !(excludedAutoCriteria || []).includes(cr));
-    const merged = Array.from(new Set([...nextManual, ...effectiveAuto]));
-    setContent(prev => ({ ...prev, evaluation: merged.join('\n') }));
-  };
-
-  const handleRemoveCriterion = (criterion) => {
-    // S'il vient des manuels -> retirer des manuels
-    if ((manualCriteria || []).includes(criterion)) {
-      const nextManual = manualCriteria.filter(c => c !== criterion);
-      setManualCriteria(nextManual);
-      const effectiveAuto = (autoCriteria || []).filter(cr => !(excludedAutoCriteria || []).includes(cr));
-      const merged = Array.from(new Set([...nextManual, ...effectiveAuto]));
-      setContent(prev => ({ ...prev, evaluation: merged.join('\n') }));
-      return;
-    }
-    // S'il vient des auto -> l'exclure
-    if ((autoCriteria || []).includes(criterion)) {
-      const nextExcluded = Array.from(new Set([...(excludedAutoCriteria || []), criterion]));
-      setExcludedAutoCriteria(nextExcluded);
-      const effectiveAuto = autoCriteria.filter(cr => !nextExcluded.includes(cr));
-      const merged = Array.from(new Set([...(manualCriteria || []), ...effectiveAuto]));
-      setContent(prev => ({ ...prev, evaluation: merged.join('\n') }));
-    }
   };
 
   // Fonctions pour les équipements
@@ -641,19 +115,9 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
       finalEquipment.push(customEquipment.trim());
       setCustomEquipment('');
     }
-    // Dédupliquer et mettre à jour l'état d'affichage
-    finalEquipment = Array.from(new Set(finalEquipment));
-    setSelectedEquipment(finalEquipment);
     const equipmentText = finalEquipment.join('\n');
     setContent(prev => ({ ...prev, equipment: equipmentText }));
     setShowEquipmentModal(false);
-  };
-
-  const handleRemoveEquipment = (equipment) => {
-    // Retirer un équipement depuis la vue principale
-    const next = (selectedEquipment || []).filter((e) => e !== equipment);
-    setSelectedEquipment(next);
-    setContent((prev) => ({ ...prev, equipment: next.join('\n') }));
   };
 
   // Fonctions pour les documents
@@ -671,9 +135,6 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
       finalDocuments.push(customDocument.trim());
       setCustomDocument('');
     }
-    // Dédupliquer et mettre à jour l'état d'affichage
-    finalDocuments = Array.from(new Set(finalDocuments));
-    setSelectedDocuments(finalDocuments);
     const documentsText = finalDocuments.join('\n');
     setContent(prev => ({ ...prev, documents: documentsText }));
     setShowDocumentsModal(false);
@@ -683,9 +144,9 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
   useEffect(() => {
     if (editingSheet) {
       setContent({
-        title: editingSheet.title || '',
-        subject: editingSheet.subject || '',
-        tpNumber: editingSheet.tpNumber || '',
+        title: editingSheet.title || 'BTS ELECTROTECHNIQUE',
+        subject: editingSheet.subject || 'ÉLECTROTECHNIQUE',
+        tpNumber: editingSheet.tpNumber || 'TP N°',
         tpTitle: editingSheet.tpTitle || '',
         subtitle: editingSheet.subtitle || '',
         studentName: editingSheet.studentName || '',
@@ -697,16 +158,14 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
         equipment: editingSheet.equipment || '',
         tasks: editingSheet.tasks || '',
         competencies: editingSheet.competencies || '',
-        workRequired: editingSheet.work_required || editingSheet.workRequired || '',
+        workRequired: editingSheet.work_required || '',
         evaluation: editingSheet.evaluation || '',
-        duration: editingSheet.duration || '',
+        duration: editingSheet.duration || '4 heures',
         safety: editingSheet.safety || '',
       });
 
       if (editingSheet.competencies) {
-        const comps = editingSheet.competencies.split('\n').filter(c => c.trim());
-        setSelectedCompetencies(comps);
-        setManualCompetencies(comps); // tout est considéré manuel au chargement
+        setSelectedCompetencies(editingSheet.competencies.split('\n').filter(c => c.trim()));
       }
       if (editingSheet.tasks) {
         setSelectedTasks(editingSheet.tasks.split('\n').filter(t => t.trim()));
@@ -720,49 +179,9 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
     }
   }, [editingSheet]);
 
-  // Réinitialiser le formulaire à vide à l'ouverture en mode création
-  useEffect(() => {
-    if (isOpen && !editingSheet) {
-      setContent({
-        title: '',
-        subject: '',
-        tpNumber: '',
-        tpTitle: '',
-        subtitle: '',
-        studentName: '',
-        studentFirstName: '',
-        studentClass: '',
-        context: '',
-        objectives: '',
-        documents: '',
-        equipment: '',
-        tasks: '',
-        competencies: '',
-        workRequired: '',
-        evaluation: '',
-        duration: '',
-        safety: '',
-      });
-      setSelectedCompetencies([]);
-      setManualCompetencies([]);
-      setExcludedAutoCompetencies([]);
-      setSelectedTasks([]);
-      setSelectedEquipment([]);
-      setSelectedDocuments([]);
-      setAutoCriteria([]);
-      setManualCriteria([]);
-      setExcludedAutoCriteria([]);
-      setCustomCriterion('');
-      setCustomEquipment('');
-      setCustomDocument('');
-      setSheetName('');
-    }
-  }, [isOpen, editingSheet]);
-
   const handleSave = () => {
     if (editingSheet) {
-      // En édition, ne pas écraser le titre avec sheetName (utilisé seulement à la création)
-      onSave({ ...content });
+      onSave({ ...content, sheetName: sheetName || editingSheet.title });
       onClose();
     } else {
       setShowNameModal(true);
@@ -807,20 +226,6 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
     const logoUrl = `${window.location.protocol}//${window.location.host}/logo patu.png`;
     console.log('🖨️ URL du logo:', logoUrl);
     
-    // Préparer HTML des critères d'évaluation en liste à puces (si pas déjà une liste)
-    const evaluationRaw = (content.evaluation || '').toString();
-    const hasListAlready = /<(ul|ol)\b/i.test(evaluationRaw);
-    const evaluationHtmlPrint = (() => {
-      if (hasListAlready) return evaluationRaw;
-      const plain = evaluationRaw
-        .replace(/<\/p>\s*<p>/gi, '\n')
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/?p>/gi, '');
-      const lines = plain.split(/\n+/).map((s) => s.trim()).filter(Boolean);
-      if (!lines.length) return '';
-      return `<ul>${lines.map((l) => `<li>${l}</li>`).join('')}</ul>`;
-    })();
-    
     // Créer un div caché pour l'impression (pas d'iframe = pas de about:blank)
     const printDiv = document.createElement('div');
     printDiv.id = 'print-content-hidden';
@@ -829,8 +234,7 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
     printDiv.style.top = '0';
     
     printDiv.innerHTML = `
-      <div id="print-scale-wrapper">
-      <div style="width: 100%; padding: 10mm; font-family: 'Times New Roman', serif; font-size: 12px; background: white;">
+      <div style="width: 210mm; padding: 10mm; font-family: 'Times New Roman', serif; font-size: 12px; background: white;">
         <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px;">
           <div style="display: flex; align-items: center;">
             <div style="height: 40px; margin-right: 15px; display: flex; align-items: center;">
@@ -875,61 +279,63 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
         ${content.context ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">1. Contexte et Situation</div>
-          <div style="font-size: 33px; line-height: 1.6; white-space: pre-wrap;">${content.context}</div>
+          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.context}</div>
             </div>
         ` : ''}
         
         ${content.objectives ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">2. Objectifs Pédagogiques</div>
-          <div style="font-size: 33px; line-height: 1.6; white-space: pre-wrap;">${content.objectives}</div>
+          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.objectives}</div>
             </div>
         ` : ''}
         
         ${content.documents ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">3. Documents et Ressources Fournis</div>
-          <div style="font-size: 33px; line-height: 1.6; white-space: pre-wrap;">${content.documents}</div>
+          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.documents}</div>
             </div>
             ` : ''}
 
         ${content.equipment ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">4. Matériel et Équipements</div>
-          <div style="font-size: 33px; line-height: 1.6; white-space: pre-wrap;">${content.equipment}</div>
+          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.equipment}</div>
             </div>
         ` : ''}
         
         ${content.tasks ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">5. Tâches à Réaliser</div>
-          <div style="font-size: 33px; line-height: 1.6; white-space: pre-wrap;">${content.tasks}</div>
+          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.tasks}</div>
             </div>
         ` : ''}
         
         ${content.competencies ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">6. Compétences Évaluées</div>
-          <div style="font-size: 33px; line-height: 1.6; white-space: pre-wrap;">${content.competencies}</div>
+          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.competencies}</div>
             </div>
         ` : ''}
         
+        ${content.workRequired ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">7. Travail Demandé</div>
-          <div style="font-size: 12px; line-height: 1.6; white-space: normal;">${(content.workRequired || '').trim()}</div>
-        </div>
+          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.workRequired}</div>
+            </div>
+        ` : ''}
         
-        ${evaluationHtmlPrint ? `
+        ${content.evaluation ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">8. Critères d'Évaluation</div>
-          <div style="font-size: 33px; line-height: 1.6; white-space: normal;">${evaluationHtmlPrint}</div>
+          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.evaluation}</div>
             </div>
         ` : ''}
         
         ${content.safety ? `
         <div style="margin-bottom: 15px; page-break-inside: avoid;">
           <div style="font-weight: bold; font-size: 13px; color: #1e40af; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin-bottom: 8px;">9. Consignes de Sécurité</div>
-          <div style="font-size: 12px; line-height: 1.6; white-space: normal;">${content.safety}</div>
+          <div style="font-size: 11px; line-height: 1.6; white-space: pre-wrap;">${content.safety}</div>
             </div>
         ` : ''}
             </div>
@@ -954,15 +360,6 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
           left: 0 !important;
           top: 0 !important;
           width: 100% !important;
-        }
-        #print-content-hidden ul { list-style: disc !important; list-style-position: inside !important; padding-left: 18px !important; margin: 0 !important; }
-        #print-content-hidden ol { list-style: decimal !important; list-style-position: inside !important; padding-left: 18px !important; margin: 0 !important; }
-        #print-content-hidden li { display: list-item !important; }
-        /* Mise à l'échelle globale à 175% (Chrome/Edge) */
-        #print-scale-wrapper {
-          transform: scale(1.75);
-          transform-origin: top left;
-          width: calc(210mm / 1.75);
         }
         @page {
           size: A4 portrait;
@@ -1216,22 +613,12 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
                     {selectedEquipment.length > 0 ? (
                     <div className="space-y-2">
                       {selectedEquipment.map((equip, index) => (
-                        <div key={index} className="flex items-center justify-between text-sm text-gray-700 bg-pink-100 px-3 py-2 rounded">
-                          <div className="flex items-center">
-                            <Wrench className="h-4 w-4 mr-2 text-pink-600" />
-                            {equip}
+                        <div key={index} className="flex items-center text-sm text-gray-700 bg-pink-100 px-3 py-2 rounded">
+                          <Wrench className="h-4 w-4 mr-2 text-pink-600" />
+                          {equip}
                           </div>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleRemoveEquipment(equip); }}
-                            className="ml-3 text-pink-700 hover:text-pink-900 text-xs font-semibold"
-                            title="Supprimer cet équipement"
-                          >
-                            Retirer
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
                     ) : (
                     <div className="text-center text-gray-400 py-8">
                       <Wrench className="h-12 w-12 mx-auto mb-2 text-pink-300" />
@@ -1303,13 +690,12 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
                   <span className="bg-yellow-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3">8</span>
                   Travail Demandé
                 </h4>
-                <ReactQuill
-                  theme="snow"
-                  value={content.workRequired || ''}
-                  onChange={(html) => setContent((prev) => ({ ...prev, workRequired: html }))}
-                  modules={textEditorModules}
-                  formats={textEditorFormats}
-                  placeholder="Décrivez le travail demandé…"
+                  <textarea
+                  value={content.workRequired}
+                  onChange={(e) => setContent({...content, workRequired: e.target.value})}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-yellow-500 focus:ring focus:ring-yellow-200 transition-all"
+                  rows={5}
+                    placeholder="Décrivez le travail demandé..."
                 />
               </div>
 
@@ -1319,47 +705,13 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
                   <span className="bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3">9</span>
                   Critères d'Évaluation
                 </h4>
-                <div className="space-y-3">
-                  {/* Liste des critères actuels avec suppression */}
-                  <div className="border-2 border-dashed border-red-200 rounded-lg p-4 min-h-[80px]">
-                    {(content.evaluation?.split('\n').filter(c => c.trim()) || []).length === 0 ? (
-                      <div className="text-center text-gray-400">Aucun critère. Sélectionnez des compétences ou ajoutez vos critères.</div>
-                    ) : (
-                      <ul className="space-y-2">
-                        {content.evaluation.split('\n').filter(c => c.trim()).map((cr, idx) => (
-                          <li key={`${cr}-${idx}`} className="flex items-start justify-between bg-red-50 border border-red-100 rounded px-3 py-2">
-                            <span className="text-sm text-gray-800 pr-3">{cr}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveCriterion(cr)}
-                              className="text-red-600 hover:text-red-800 text-xs font-semibold"
-                              title="Supprimer ce critère"
-                            >
-                              Retirer
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                  {/* Ajout manuel d'un critère */}
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={customCriterion}
-                      onChange={(e) => setCustomCriterion(e.target.value)}
-                      placeholder="Ajouter un critère personnalisé…"
-                      className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:ring focus:ring-red-200 text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddCriterion}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
-                    >
-                      Ajouter
-                    </button>
-                  </div>
-                </div>
+                  <textarea
+                  value={content.evaluation}
+                  onChange={(e) => setContent({...content, evaluation: e.target.value})}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:ring focus:ring-red-200 transition-all"
+                  rows={5}
+                  placeholder="Décrivez les critères d'évaluation..."
+                />
               </div>
 
               {/* Section Sécurité */}
@@ -1368,15 +720,14 @@ const TPSheetModal = ({ isOpen, onClose, onSave, editingSheet }) => {
                   <span className="bg-rose-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3">10</span>
                   Consignes de Sécurité
                 </h4>
-                <ReactQuill
-                  theme="snow"
-                  value={content.safety || ''}
-                  onChange={(html) => setContent((prev) => ({ ...prev, safety: html }))}
-                  modules={textEditorModules}
-                  formats={textEditorFormats}
-                  placeholder="Décrivez les consignes de sécurité…"
-                />
-              </div>
+                  <textarea
+                  value={content.safety}
+                  onChange={(e) => setContent({...content, safety: e.target.value})}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-rose-500 focus:ring focus:ring-rose-200 transition-all"
+                  rows={3}
+                  placeholder="Décrivez les consignes de sécurité..."
+                  />
+                </div>
                 </div>
               </div>
 
